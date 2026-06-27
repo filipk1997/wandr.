@@ -26,6 +26,19 @@ const QUESTIONS = [
     type: "dates",
   },
   {
+    id: "tripLength",
+    headline: "How long are you going?",
+    sub: "",
+    type: "single",
+    options: [
+      { value: "weekend", label: "🌆 Weekend", hint: "1–2 nights" },
+      { value: "long_weekend", label: "🏖️ Long weekend", hint: "3–4 nights" },
+      { value: "week", label: "🗓️ About a week", hint: "5–8 nights" },
+      { value: "two_weeks", label: "✈️ Two weeks", hint: "Proper holiday" },
+      { value: "month_plus", label: "🌍 A month or more", hint: "Long stay" },
+    ],
+  },
+  {
     id: "who",
     headline: "Who's coming with you?",
     type: "single",

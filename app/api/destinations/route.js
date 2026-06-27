@@ -145,8 +145,11 @@ NON-NEGOTIABLE RULES:
 2. PUT EVERYTHING ON A TRAY. Itemise the real cost: flights, hotel (with board type — all-inclusive / B&B /
    room-only), food (a nice restaurant dinner price AND cheap local eats price, or "covered" if all-inclusive),
    car rental, extras, and a realistic TOTAL. Compute for the party size (Solo = 1, Partner = 2, Family ≈ 4,
-   Friends ≈ 4) and the number of nights between their dates. Approximate ranges are perfect — never pretend
-   to be exact. Money should feel honest and concrete, the way a friend would actually break it down.
+   Friends ≈ 4) and the trip length (tripLength: weekend ≈ 2 nights, long_weekend ≈ 4, week ≈ 7,
+   two_weeks ≈ 14, month_plus ≈ 30+). For a month or more, price a MONTHLY apartment rental (far cheaper per
+   night than a hotel) and add a short long-stay/visa note; for short trips use nightly hotel pricing.
+   Scale EVERY cost (hotel, food, car, total) to the trip length. Approximate ranges are perfect — never
+   pretend to be exact. Money should feel honest and concrete, the way a friend would actually break it down.
 3. AFFORDABILITY. Compare the total to their budget and say plainly if it fits comfortably or is a stretch,
    then how to spend the budget WELL (e.g. "with €2,000 you could go all-inclusive 5★" or "add 2 nights").
    When a beach-resort destination suits them, offer an all-inclusive option and note food is then covered.
