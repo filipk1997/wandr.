@@ -5,9 +5,9 @@ import Link from "next/link";
 
 const LOADING_MESSAGES = [
   "Scanning 10,000+ destinations...",
-  "Matching your travel vibe...",
-  "Comparing flights and prices...",
-  "Building your perfect trip...",
+  "Skipping the obvious tourist traps...",
+  "Comparing flights, cars and hotels...",
+  "Adding up what it really costs...",
   "Almost ready...",
 ];
 
@@ -57,7 +57,6 @@ export default function Results() {
     getDestinations();
   }, []);
 
-  // Full-screen loading experience
   if (status === "loading") return <LoadingScreen />;
 
   return (
@@ -81,7 +80,7 @@ export default function Results() {
 
       {status === "done" && (
         <>
-          <p className="mt-2 text-slate-500">Tap a card to see the details.</p>
+          <p className="mt-2 text-slate-500">Hidden gems — tap a card for the full breakdown.</p>
 
           <div className="mt-8 grid w-full max-w-xl gap-6">
             {destinations.map((d, i) => (
@@ -127,13 +126,9 @@ function DestinationCard({ d, departureCity }) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Relevant destination photo by keyword. Single-word tags match reliably,
-  // so use the first word of the place name (e.g. "Kotor Bay" -> "Kotor").
-  // Falls back to a teal + letter tile if it fails to load.
+  // Relevant destination photo by keyword. Single-word tags match reliably.
   const photoQuery = d.name.split(/[(&,]/)[0].trim().split(/\s+/)[0] || d.name;
-  const imageUrl = `https://loremflickr.com/800/400/${encodeURIComponent(
-    photoQuery,
-  )}`;
+  const imageUrl = `https://loremflickr.com/800/400/${encodeURIComponent(photoQuery)}`;
 
   // Affiliate deep-links built from the real city values.
   const flightsUrl = `https://www.skyscanner.com/transport/flights/${slug(
@@ -141,6 +136,8 @@ function DestinationCard({ d, departureCity }) {
   )}/${slug(d.name)}/`;
   const hotelsUrl = `https://www.booking.com/search.html?ss=${encodeURIComponent(d.name)}`;
   const activitiesUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(d.name)}`;
+
+  const c = d.costs || {};
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
@@ -167,6 +164,9 @@ function DestinationCard({ d, departureCity }) {
             {d.name}
           </h2>
         </div>
+        <span className="absolute left-3 top-3 rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-bold text-teal-900">
+          💎 Hidden gem
+        </span>
       </div>
 
       {/* Body */}
@@ -175,11 +175,11 @@ function DestinationCard({ d, departureCity }) {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-800">
-            {d.approxBudget}
+            {c.total}
           </span>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="rounded-full bg-teal-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+            className="flex-none rounded-full bg-teal-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
           >
             {open ? "Hide details" : "See details"}
           </button>
@@ -188,14 +188,58 @@ function DestinationCard({ d, departureCity }) {
         {/* Expandable details */}
         {open && (
           <div className="mt-5 space-y-4 border-t border-slate-100 pt-4">
-            <Info label="Why it fits" value={d.whyItFits} />
-            <Info label="Weather then" value={d.weather} />
+            <Info label="Why it's a hidden gem" value={d.whyHidden} />
+            <Info label="Why it fits you" value={d.whyItFits} />
+            <Info label="Best time to go" value={d.bestTime} />
+
+            {/* Cost breakdown — everything on a tray */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                💰 What it costs
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
+                <CostLine label="Flights" value={c.flights} />
+                <CostLine label="Hotel" value={c.hotel} />
+                <CostLine label="Food" value={c.food} />
+                <CostLine label="Car" value={c.carRental} />
+                <CostLine label="Extras" value={c.extras} />
+              </ul>
+              <p className="mt-2 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800">
+                Total: {c.total}
+              </p>
+            </div>
+
+            {d.affordability && (
+              <p className="rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
+                💡 {d.affordability}
+              </p>
+            )}
+
+            {/* Getting there */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Getting there{departureCity ? ` from ${departureCity}` : ""}
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
+                {(d.gettingThere || []).map((g, k) => (
+                  <li key={k}>
+                    <span className="font-semibold text-slate-800">{g.mode}:</span>{" "}
+                    {g.detail}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <Info label="🏖️ Beaches & nature" value={d.beaches} />
+            <Info label="🍽️ Good eats" value={d.goodEats} />
+
+            {/* Top activities */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Top activities
               </p>
               <ul className="mt-2 flex flex-wrap gap-2">
-                {d.activities.map((a, j) => (
+                {(d.topActivities || []).map((a, j) => (
                   <li
                     key={j}
                     className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
@@ -241,7 +285,17 @@ function DestinationCard({ d, departureCity }) {
   );
 }
 
+function CostLine({ label, value }) {
+  if (!value) return null;
+  return (
+    <li>
+      <span className="font-semibold text-slate-800">{label}:</span> {value}
+    </li>
+  );
+}
+
 function Info({ label, value }) {
+  if (!value) return null;
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
