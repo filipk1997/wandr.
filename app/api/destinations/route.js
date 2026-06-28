@@ -32,6 +32,11 @@ const SCHEMA = {
             type: "string",
             description: "Best time to visit + what the weather is like then.",
           },
+          priceFrom: {
+            type: "string",
+            description:
+              "Short, enticing entry price PER PERSON, e.g. 'From €420 pp'. Use the low/affordable end. This is the headline number the user sees first — the big party total goes only in costs.total.",
+          },
           costs: {
             type: "object",
             description:
@@ -118,6 +123,7 @@ const SCHEMA = {
           "whyHidden",
           "whyItFits",
           "bestTime",
+          "priceFrom",
           "costs",
           "affordability",
           "beaches",
@@ -150,6 +156,9 @@ NON-NEGOTIABLE RULES:
    night than a hotel) and add a short long-stay/visa note; for short trips use nightly hotel pricing.
    Scale EVERY cost (hotel, food, car, total) to the trip length. Approximate ranges are perfect — never
    pretend to be exact. Money should feel honest and concrete, the way a friend would actually break it down.
+   HEADLINE PRICE: also give "priceFrom" — a short, attractive PER-PERSON entry price like "From €420 pp"
+   (the affordable end). This is what the user sees first, so it should entice, not scare. Keep the big
+   full-party total only inside costs.total.
 3. AFFORDABILITY. Compare the total to their budget and say plainly if it fits comfortably or is a stretch,
    then how to spend the budget WELL (e.g. "with €2,000 you could go all-inclusive 5★" or "add 2 nights").
    When a beach-resort destination suits them, offer an all-inclusive option and note food is then covered.

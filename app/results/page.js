@@ -126,9 +126,15 @@ function DestinationCard({ d, departureCity }) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Relevant destination photo by keyword. Single-word tags match reliably.
-  const photoQuery = d.name.split(/[(&,]/)[0].trim().split(/\s+/)[0] || d.name;
-  const imageUrl = `https://loremflickr.com/800/400/${encodeURIComponent(photoQuery)}`;
+  // Relevant destination photo. Hidden-gem towns rarely have a photo tag, so
+  // use the COUNTRY (always a real, on-topic tag — never a random dog), with a
+  // stable per-destination "lock" so each card gets its own distinct image.
+  const lock = Math.abs(
+    [...d.name].reduce((a, ch) => ((a * 31 + ch.charCodeAt(0)) | 0), 7),
+  );
+  const imageUrl = `https://loremflickr.com/800/400/${encodeURIComponent(
+    d.country || d.name,
+  )}?lock=${lock}`;
 
   // Affiliate deep-links built from the real city values.
   const flightsUrl = `https://www.skyscanner.com/transport/flights/${slug(
@@ -175,7 +181,7 @@ function DestinationCard({ d, departureCity }) {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-800">
-            {c.total}
+            {d.priceFrom || c.total}
           </span>
           <button
             onClick={() => setOpen((o) => !o)}
