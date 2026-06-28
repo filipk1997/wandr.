@@ -2,9 +2,14 @@
 
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-bricolage), var(--font-inter), sans-serif;
 }
 
 body {
   font-family: var(--font-sans);
+}
+
+/* Editorial serif for display headings.
+   Defined unlayered so it reliably wins over Tailwind's utility layer. */
+.font-display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
 }

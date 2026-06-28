@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const LOADING_MESSAGES = [
-  "Scanning 10,000+ destinations...",
-  "Skipping the obvious tourist traps...",
-  "Comparing flights, cars and hotels...",
-  "Adding up what it really costs...",
+  "Scanning the whole world...",
+  "Matching your taste, not the tourist crowds...",
+  "Comparing flights, stays and prices...",
+  "Laying your trip out on a tray...",
   "Almost ready...",
 ];
 
-// Turn a city name into a URL-safe slug for the Skyscanner path.
 const slug = (s) =>
   (s || "")
     .toLowerCase()
@@ -60,18 +59,21 @@ export default function Results() {
   if (status === "loading") return <LoadingScreen />;
 
   return (
-    <main className="flex flex-1 flex-col items-center bg-slate-50 px-6 py-12">
-      <h1 className="font-display text-4xl font-bold tracking-tight text-slate-800">
+    <main className="flex flex-1 flex-col items-center bg-[#F6F2EA] px-6 py-14">
+      <p className="text-xs font-medium uppercase tracking-[0.25em] text-teal-700">
+        Curated for you
+      </p>
+      <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight text-stone-800">
         Your 3 escapes
       </h1>
 
       {status === "error" && (
         <div className="mt-12 max-w-md text-center">
-          <p className="text-lg font-medium text-slate-700">Hmm, that didn&apos;t work.</p>
-          <p className="mt-2 text-sm text-slate-500">{error}</p>
+          <p className="text-lg font-medium text-stone-700">Hmm, that didn&apos;t work.</p>
+          <p className="mt-2 text-sm text-stone-500">{error}</p>
           <Link
             href="/quiz"
-            className="mt-6 inline-block rounded-full bg-teal-600 px-6 py-3 font-semibold text-white transition hover:bg-teal-700"
+            className="mt-6 inline-block rounded-full bg-teal-700 px-6 py-3 font-semibold text-white transition hover:bg-teal-800"
           >
             Back to quiz
           </Link>
@@ -80,17 +82,17 @@ export default function Results() {
 
       {status === "done" && (
         <>
-          <p className="mt-2 text-slate-500">Hidden gems — tap a card for the full breakdown.</p>
+          <p className="mt-3 text-stone-500">Three places, fully costed. Tap one to dig in.</p>
 
-          <div className="mt-8 grid w-full max-w-xl gap-6">
+          <div className="mt-10 grid w-full max-w-xl gap-10">
             {destinations.map((d, i) => (
-              <DestinationCard key={i} d={d} departureCity={departureCity} />
+              <DestinationCard key={i} d={d} index={i + 1} departureCity={departureCity} />
             ))}
           </div>
 
           <Link
             href="/quiz"
-            className="mt-10 rounded-full border-2 border-teal-600 px-6 py-3 font-semibold text-teal-700 transition hover:bg-teal-50"
+            className="mt-12 rounded-full border border-stone-300 px-7 py-3 font-medium text-stone-700 transition hover:border-stone-400 hover:bg-white"
           >
             Plan another trip
           </Link>
@@ -112,31 +114,22 @@ function LoadingScreen() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-teal-700 to-teal-500 px-6 text-center">
-      <h1 className="font-display text-6xl font-bold tracking-tight text-white">
+    <main className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-teal-800 to-teal-600 px-6 text-center">
+      <h1 className="font-display text-6xl font-semibold tracking-tight text-white">
         wandr<span className="text-yellow-300">.</span>
       </h1>
-      <div className="mt-8 h-12 w-12 animate-spin rounded-full border-4 border-white/30 border-t-white" />
-      <p className="mt-6 text-lg font-medium text-white/90">{LOADING_MESSAGES[i]}</p>
+      <div className="mt-8 h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+      <p className="mt-6 font-display text-xl text-white/90">{LOADING_MESSAGES[i]}</p>
     </main>
   );
 }
 
-function DestinationCard({ d, departureCity }) {
+function DestinationCard({ d, index, departureCity }) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Relevant destination photo. Hidden-gem towns rarely have a photo tag, so
-  // use the COUNTRY (always a real, on-topic tag — never a random dog), with a
-  // stable per-destination "lock" so each card gets its own distinct image.
-  const lock = Math.abs(
-    [...d.name].reduce((a, ch) => ((a * 31 + ch.charCodeAt(0)) | 0), 7),
-  );
-  const imageUrl = `https://loremflickr.com/800/400/${encodeURIComponent(
-    d.country || d.name,
-  )}?lock=${lock}`;
+  const imageUrl = d.imageUrl;
 
-  // Affiliate deep-links built from the real city values.
   const flightsUrl = `https://www.skyscanner.com/transport/flights/${slug(
     departureCity,
   )}/${slug(d.name)}/`;
@@ -146,109 +139,106 @@ function DestinationCard({ d, departureCity }) {
   const c = d.costs || {};
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
-      {/* Image banner */}
-      <div className="relative h-44 bg-gradient-to-br from-teal-700 to-teal-500">
-        {!imgError ? (
+    <article className="overflow-hidden rounded-2xl bg-white shadow-[0_6px_40px_rgba(40,30,15,0.10)]">
+      {/* Full-bleed magazine image */}
+      <div className="relative h-64 bg-gradient-to-br from-teal-800 to-teal-600">
+        {imageUrl && !imgError ? (
           <img
             src={imageUrl}
             alt={`${d.name}, ${d.country}`}
             onError={() => setImgError(true)}
-            className="h-44 w-full object-cover"
+            className="h-64 w-full object-cover"
           />
         ) : (
-          <div className="flex h-44 w-full items-center justify-center">
-            <span className="font-display text-7xl font-bold text-white">
+          <div className="flex h-64 w-full items-center justify-center">
+            <span className="font-display text-8xl font-semibold text-white/90">
               {d.name.charAt(0)}
             </span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-        <div className="absolute bottom-3 left-4 right-4">
-          <p className="text-xs font-medium text-white/80">{d.country}</p>
-          <h2 className="font-display text-2xl font-bold text-white drop-shadow-sm">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
+
+        {/* Magazine index */}
+        <span className="absolute left-5 top-4 font-display text-2xl font-semibold text-white/90">
+          {String(index).padStart(2, "0")}
+        </span>
+
+        <div className="absolute bottom-4 left-5 right-5">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/80">
+            {d.country}
+          </p>
+          <h2 className="mt-1 font-display text-3xl font-semibold leading-tight text-white">
             {d.name}
           </h2>
         </div>
-        <span className="absolute left-3 top-3 rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-bold text-teal-900">
-          💎 Hidden gem
-        </span>
       </div>
 
       {/* Body */}
-      <div className="p-5">
-        <p className="text-slate-600">{d.description}</p>
+      <div className="p-7">
+        <p className="font-display text-xl leading-relaxed text-stone-700">
+          {d.description}
+        </p>
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-800">
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <span className="font-display text-lg font-semibold text-teal-800">
             {d.priceFrom || c.total}
           </span>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="flex-none rounded-full bg-teal-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+            className="flex-none rounded-full bg-teal-700 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
           >
             {open ? "Hide details" : "See details"}
           </button>
         </div>
 
-        {/* Expandable details */}
         {open && (
-          <div className="mt-5 space-y-4 border-t border-slate-100 pt-4">
-            <Info label="Why it's a hidden gem" value={d.whyHidden} />
+          <div className="mt-7 space-y-5 border-t border-stone-200 pt-6">
             <Info label="Why it fits you" value={d.whyItFits} />
             <Info label="Best time to go" value={d.bestTime} />
 
-            {/* Cost breakdown — everything on a tray */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                💰 What it costs
-              </p>
-              <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
+              <Label>What it costs</Label>
+              <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
                 <CostLine label="Flights" value={c.flights} />
                 <CostLine label="Hotel" value={c.hotel} />
                 <CostLine label="Food" value={c.food} />
                 <CostLine label="Car" value={c.carRental} />
                 <CostLine label="Extras" value={c.extras} />
               </ul>
-              <p className="mt-2 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800">
-                Total: {c.total}
-              </p>
+              {c.total && (
+                <p className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900">
+                  {c.total}
+                </p>
+              )}
             </div>
 
             {d.affordability && (
-              <p className="rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 💡 {d.affordability}
               </p>
             )}
 
-            {/* Getting there */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Getting there{departureCity ? ` from ${departureCity}` : ""}
-              </p>
-              <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
+              <Label>Getting there{departureCity ? ` from ${departureCity}` : ""}</Label>
+              <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
                 {(d.gettingThere || []).map((g, k) => (
                   <li key={k}>
-                    <span className="font-semibold text-slate-800">{g.mode}:</span>{" "}
-                    {g.detail}
+                    <span className="font-semibold text-stone-900">{g.mode}:</span> {g.detail}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <Info label="🏖️ Beaches & nature" value={d.beaches} />
-            <Info label="🍽️ Good eats" value={d.goodEats} />
+            <Info label="Beaches & scenery" value={d.beaches} />
+            <Info label="Where to eat" value={d.goodEats} />
 
-            {/* Top activities */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Top activities
-              </p>
+              <Label>Don&apos;t miss</Label>
               <ul className="mt-2 flex flex-wrap gap-2">
                 {(d.topActivities || []).map((a, j) => (
                   <li
                     key={j}
-                    className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
+                    className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-700"
                   >
                     {a}
                   </li>
@@ -256,14 +246,14 @@ function DestinationCard({ d, departureCity }) {
               </ul>
             </div>
 
-            {/* Affiliate booking buttons */}
+            {/* Booking */}
             <div className="space-y-2 pt-1">
-              <p className="text-xs font-medium text-slate-400">Ready to book?</p>
+              <Label>Ready to book?</Label>
               <a
                 href={flightsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full rounded-full bg-teal-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-700"
+                className="block w-full rounded-full bg-teal-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-800"
               >
                 ✈️ Search flights
               </a>
@@ -271,7 +261,7 @@ function DestinationCard({ d, departureCity }) {
                 href={hotelsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full rounded-full border-2 border-teal-600 bg-white px-5 py-3 text-center text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
+                className="block w-full rounded-full border border-teal-700 px-5 py-3 text-center text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
               >
                 🏨 Browse hotels
               </a>
@@ -279,7 +269,7 @@ function DestinationCard({ d, departureCity }) {
                 href={activitiesUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full rounded-full border-2 border-teal-600 bg-white px-5 py-3 text-center text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
+                className="block w-full rounded-full border border-teal-700 px-5 py-3 text-center text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
               >
                 🎯 Book activities
               </a>
@@ -287,7 +277,15 @@ function DestinationCard({ d, departureCity }) {
           </div>
         )}
       </div>
-    </div>
+    </article>
+  );
+}
+
+function Label({ children }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+      {children}
+    </p>
   );
 }
 
@@ -295,7 +293,7 @@ function CostLine({ label, value }) {
   if (!value) return null;
   return (
     <li>
-      <span className="font-semibold text-slate-800">{label}:</span> {value}
+      <span className="font-semibold text-stone-900">{label}:</span> {value}
     </li>
   );
 }
@@ -304,10 +302,8 @@ function Info({ label, value }) {
   if (!value) return null;
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-      <p className="mt-0.5 text-sm text-slate-700">{value}</p>
+      <Label>{label}</Label>
+      <p className="mt-1 text-sm leading-relaxed text-stone-700">{value}</p>
     </div>
   );
 }

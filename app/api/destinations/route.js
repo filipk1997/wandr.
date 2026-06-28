@@ -1,10 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-// Give the AI room to think + the serverless function room to finish on Vercel.
+// Give the AI + photo lookups room to finish on Vercel.
 export const maxDuration = 60;
 
-// The exact shape we want Claude to return — structured outputs guarantee
-// valid JSON, so the frontend never has to deal with parse errors.
 const SCHEMA = {
   type: "object",
   properties: {
@@ -19,14 +17,10 @@ const SCHEMA = {
             type: "string",
             description: "One vivid sentence selling the place.",
           },
-          whyHidden: {
-            type: "string",
-            description:
-              "Why this is an under-the-radar gem, not an obvious tourist trap. 1 sentence.",
-          },
           whyItFits: {
             type: "string",
-            description: "Why it matches this traveler's answers. 1 sentence.",
+            description:
+              "Why this specifically matches THIS traveler's answers (budget, who, vibes, pace, notes). 1–2 sentences, concrete.",
           },
           bestTime: {
             type: "string",
@@ -35,42 +29,40 @@ const SCHEMA = {
           priceFrom: {
             type: "string",
             description:
-              "Short, enticing entry price PER PERSON, e.g. 'From €420 pp'. Use the low/affordable end. This is the headline number the user sees first — the big party total goes only in costs.total.",
+              "Short, enticing entry price PER PERSON — JUST the price, no extra words, exactly like 'From €420 pp'. Use the affordable end. The big party total goes only in costs.total.",
           },
           costs: {
             type: "object",
             description:
-              "The trip economics, itemised. For the whole party + number of nights from their dates. Approximate ranges are great.",
+              "Trip economics, itemised for the whole party + number of nights from their dates. Approximate ranges are great.",
             properties: {
               flights: {
                 type: "string",
                 description:
-                  "Round-trip flight ballpark per person + likely airline/route, e.g. 'Skopje→Dalaman ~€150 pp return (Wizz, late Sep)'.",
+                  "Round-trip flight ballpark per person + likely airline/route. If they'd drive instead, say so.",
               },
               hotel: {
                 type: "string",
                 description:
-                  "Nightly price + total for the stay, with board type (all-inclusive / B&B / room-only), e.g. 'All-inclusive 4★ ~€110/night for two = ~€550 for 5 nights'.",
+                  "Nightly price + total for the stay, with board type (all-inclusive / B&B / room-only). For ~30+ nights, a MONTHLY apartment rental.",
               },
               food: {
                 type: "string",
                 description:
-                  "If not all-inclusive: a nice restaurant dinner price, cheap/local eats price, and a rough daily food budget. If all-inclusive, say food is mostly covered.",
+                  "A nice restaurant dinner price, cheap/local eats price, and rough daily food budget. If all-inclusive, say food is mostly covered.",
               },
               carRental: {
                 type: "string",
-                description:
-                  "Per-day rental ballpark + whether it's worth it, e.g. '~€30/day, worth it for beach-hopping'.",
+                description: "Per-day rental ballpark + whether it's worth it here.",
               },
               extras: {
                 type: "string",
-                description:
-                  "Activities, boat trips, entries — rough cost. Note when most beaches/sights are free.",
+                description: "Activities/entries rough cost. Note when sights/beaches are free.",
               },
               total: {
                 type: "string",
                 description:
-                  "Realistic TOTAL for the whole party for the trip, flights included, e.g. '≈ €1,300 for two, 5 nights, all in'.",
+                  "Realistic TOTAL for the whole party, flights included, e.g. '≈ €1,300 for two, 5 nights'.",
               },
             },
             required: ["flights", "hotel", "food", "carRental", "extras", "total"],
@@ -79,32 +71,25 @@ const SCHEMA = {
           affordability: {
             type: "string",
             description:
-              "Verdict vs their budget: comfortably within / a stretch — AND how to spend the budget well (e.g. upgrade to all-inclusive, a nicer hotel, an extra night).",
+              "Verdict vs their budget: comfortably within / a stretch — AND how to spend the budget well.",
           },
           beaches: {
             type: "string",
-            description: "Notable beaches / nature spots worth it here.",
+            description: "Notable beaches / nature / scenery worth it here.",
           },
           goodEats: {
             type: "string",
-            description:
-              "The food scene: what to eat, a nice restaurant vibe + rough price, local specialties + rough price.",
+            description: "Food scene: what to eat + a nice restaurant and a local specialty with rough prices.",
           },
           gettingThere: {
             type: "array",
             description:
-              "1–3 realistic ways to get there from the departure city. Include a CAR option when drivable.",
+              "1–3 realistic ways to get there from the departure city. Include CAR only when realistically drivable; for far destinations, flights only.",
             items: {
               type: "object",
               properties: {
-                mode: {
-                  type: "string",
-                  description: "Short mode, e.g. 'Flight', 'Car', 'Bus', 'Ferry'.",
-                },
-                detail: {
-                  type: "string",
-                  description: "Route + rough cost + time.",
-                },
+                mode: { type: "string", description: "e.g. 'Flight', 'Car', 'Bus', 'Ferry'." },
+                detail: { type: "string", description: "Route + rough cost + time." },
               },
               required: ["mode", "detail"],
               additionalProperties: false,
@@ -120,7 +105,6 @@ const SCHEMA = {
           "name",
           "country",
           "description",
-          "whyHidden",
           "whyItFits",
           "bestTime",
           "priceFrom",
@@ -139,40 +123,92 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-const SYSTEM_PROMPT = `You are wandr — a sharp, well-travelled friend who tips people off to places they DON'T already know,
-then lays out the whole trip on a tray so they can see exactly what it costs and whether they can afford it.
+const SYSTEM_PROMPT = `You are wandr — a sharp, well-travelled friend who plans the perfect trip and lays the whole thing
+on a tray: where to go, why it fits YOU, and exactly what it costs.
 Voice: relaxed, energetic, "you/your", evocative (dream, escape, discover). No corporate tone.
 
-NON-NEGOTIABLE RULES:
-1. AVOID THE OBVIOUS. Do NOT recommend famous, heavily-touristed, "everyone-already-knows-it" places
-   (e.g. Kotor, Dubrovnik, Ljubljana, Santorini, Venice, Paris, Barcelona). The traveler can Google those.
-   Pick lesser-known, under-the-radar spots that are genuinely beautiful — the kind a well-travelled local
-   friend would whisper to you. Surprise them with places they wouldn't find themselves.
-2. PUT EVERYTHING ON A TRAY. Itemise the real cost: flights, hotel (with board type — all-inclusive / B&B /
-   room-only), food (a nice restaurant dinner price AND cheap local eats price, or "covered" if all-inclusive),
-   car rental, extras, and a realistic TOTAL. Compute for the party size (Solo = 1, Partner = 2, Family ≈ 4,
-   Friends ≈ 4) and the trip length (tripLength: weekend ≈ 2 nights, long_weekend ≈ 4, week ≈ 7,
-   two_weeks ≈ 14, month_plus ≈ 30+). For a month or more, price a MONTHLY apartment rental (far cheaper per
-   night than a hotel) and add a short long-stay/visa note; for short trips use nightly hotel pricing.
-   Scale EVERY cost (hotel, food, car, total) to the trip length. Approximate ranges are perfect — never
-   pretend to be exact. Money should feel honest and concrete, the way a friend would actually break it down.
-   HEADLINE PRICE: also give "priceFrom" — a short, attractive PER-PERSON entry price like "From €420 pp"
-   (the affordable end). This is what the user sees first, so it should entice, not scare. Keep the big
-   full-party total only inside costs.total.
-3. AFFORDABILITY. Compare the total to their budget and say plainly if it fits comfortably or is a stretch,
-   then how to spend the budget WELL (e.g. "with €2,000 you could go all-inclusive 5★" or "add 2 nights").
-   When a beach-resort destination suits them, offer an all-inclusive option and note food is then covered.
-4. HOW TO GET THERE, REALISTICALLY, from their departure city. From the Balkans (e.g. Skopje), budget carriers
-   like Wizz Air fly cheap to Turkey/Italy; ALWAYS include a CAR option when the place is drivable (drive time
-   + rough fuel/toll cost) — many people prefer to drive. Add bus/ferry when it's a real cheap option.
-5. Also cover the stuff that makes a trip ("beaches", "goodEats") so they can picture cheap flights + nice
-   hotel + rent-a-car + nice beaches + great local food — and want to tell their friends about it.
+RULES:
+1. THE WHOLE WORLD IS ON THE TABLE. Spain, Italy, Greece, Portugal, Norway, Switzerland, Morocco, Turkey,
+   Japan, Mexico, Thailand, anywhere. Match the SCOPE to their "flight" answer:
+   - short  → a few hours away (neighbouring countries / short-haul).
+   - medium → wider region (most of Europe, North Africa, nearby Asia).
+   - anywhere → truly global — Japan, Mexico, Southeast Asia, the Americas are all fair game.
+   Do NOT default to nearby drive-able places unless their answers clearly point there.
+2. DEEPLY TAILORED, NEVER RANDOM. Every pick must visibly reflect their budget, who they travel with,
+   their vibes, pace, stay type, transit, and especially their free-text "extras" notes. In whyItFits,
+   name the specific answers it satisfies. If a pick wouldn't clearly delight THIS person, drop it.
+3. SURPRISE, BUT STAY RELEVANT. Aim for a mix: at least one lesser-known gem they probably haven't
+   considered, plus well-loved places when they genuinely fit. Avoid only the most clichéd tourist traps
+   when a better-fitting option exists. Quality of fit beats obscurity.
+4. EVERYTHING ON A TRAY. Itemise real costs: flights (per person + airline/route), hotel (with board type —
+   all-inclusive / B&B / room-only), food (a nice restaurant dinner price AND cheap local eats, or "covered"
+   if all-inclusive), car rental, extras, and a realistic TOTAL. Compute for the party (Solo=1, Partner=2,
+   Family≈4, Friends≈4) and the number of nights between their dates. For ~30+ nights, price a MONTHLY
+   apartment + a short long-stay/visa note. Ranges are perfect — honest and concrete, like a friend would.
+   priceFrom = a short, enticing PER-PERSON entry price ("From €X pp"); the big total goes only in costs.total.
+5. AFFORDABILITY. Compare the total to their budget; say plainly if it fits or is a stretch, then how to spend
+   the budget well (all-inclusive upgrade, nicer hotel, extra nights).
+6. GETTING THERE from their departure city: realistic flights; include a CAR option ONLY when the place is
+   genuinely drivable from there — for far destinations, don't force a car.
+7. Also cover "beaches" (scenery/nature) and "goodEats" so they can picture the whole holiday and want to
+   tell their friends.
 
-Pick exactly 3 varied, NON-OBVIOUS destinations that fit the answers. Infer weather from the dates + vibes.
-Honor the "extras" free-text strongly. Keep each field short and punchy.`;
+Pick exactly 3 destinations that genuinely fit. Infer weather from the dates + vibes. Keep each field short.`;
+
+// fetch with a hard timeout so a slow/hung photo lookup never blocks results.
+async function fetchT(url, opts = {}, ms = 4000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+// Fetch a real, on-topic photo for a destination. Unsplash (beautiful) if a key
+// is set, otherwise Wikipedia (accurate). Returns a URL or null. Never throws.
+async function getPhoto(name, country) {
+  const key = process.env.UNSPLASH_ACCESS_KEY;
+  if (key) {
+    try {
+      const r = await fetchT(
+        `https://api.unsplash.com/search/photos?per_page=1&orientation=landscape&query=${encodeURIComponent(
+          `${name} ${country}`,
+        )}`,
+        { headers: { Authorization: `Client-ID ${key}` } },
+      );
+      if (r.ok) {
+        const j = await r.json();
+        const u = j.results?.[0]?.urls?.regular;
+        if (u) return u;
+      }
+    } catch {}
+  }
+
+  // First real place name only (drop "& Osaka", "(area)", etc.) — avoids
+  // falling back to a country page, which on Wikipedia is often just a flag/map.
+  const cleanName = name.split(/[(,&/]|\s-\s/)[0].trim();
+  for (const title of [cleanName]) {
+    try {
+      const r = await fetchT(
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+        { headers: { "User-Agent": "wandr-travel-app/1.0" } },
+      );
+      if (r.ok) {
+        const j = await r.json();
+        let u = j.originalimage?.source || j.thumbnail?.source;
+        if (u && j.thumbnail?.source && !j.originalimage?.source) {
+          u = u.replace(/\/\d+px-/, "/1024px-");
+        }
+        if (u) return u;
+      }
+    } catch {}
+  }
+  return null;
+}
 
 export async function POST(request) {
-  // Guard: no key configured yet → a clear, friendly error instead of a crash.
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json(
       { error: "Missing ANTHROPIC_API_KEY. Add it to .env.local and restart the server." },
@@ -182,26 +218,39 @@ export async function POST(request) {
 
   try {
     const answers = await request.json();
-    const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
+    const client = new Anthropic();
     const from = answers.from || "my city";
 
     const response = await client.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 12000,
+      model: "claude-sonnet-4-6",
+      max_tokens: 16000,
       thinking: { type: "adaptive" },
+      output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
       system: SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
-          content: `Here are my answers:\n\n${JSON.stringify(answers, null, 2)}\n\nI'm leaving from ${from}. Surprise me with 3 lesser-known but beautiful places, lay out exactly what each trip costs (flights, hotel, food, car, total), tell me if it fits my budget, and how to get there from ${from} (flight AND by car when it makes sense).`,
+          content: `Here are my answers:\n\n${JSON.stringify(answers, null, 2)}\n\nI'm leaving from ${from}. Give me 3 destinations that genuinely fit ME (use my flight-distance answer for how far), lay out exactly what each costs, tell me if it fits my budget, and how to get there from ${from}.`,
         },
       ],
-      output_config: { format: { type: "json_schema", schema: SCHEMA } },
     });
 
-    // With structured outputs the first text block is guaranteed-valid JSON.
     const textBlock = response.content.find((b) => b.type === "text");
+    if (!textBlock) {
+      throw new Error(
+        `No text in response (stop_reason: ${response.stop_reason}). Try again.`,
+      );
+    }
     const data = JSON.parse(textBlock.text);
+
+    // Attach a real photo to each destination (in parallel).
+    if (Array.isArray(data.destinations)) {
+      await Promise.all(
+        data.destinations.map(async (d) => {
+          d.imageUrl = await getPhoto(d.name, d.country);
+        }),
+      );
+    }
 
     return Response.json(data);
   } catch (err) {

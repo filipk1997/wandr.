@@ -1,9 +1,9 @@
-import { Bricolage_Grotesque, Inter } from "next/font/google";
+import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 
-// Display font for headlines — modern, warm, full of character.
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+// Editorial serif for headlines — elegant, magazine-like.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
 });
 
@@ -22,7 +22,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${inter.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
