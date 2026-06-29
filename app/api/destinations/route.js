@@ -137,9 +137,11 @@ RULES:
 2. DEEPLY TAILORED, NEVER RANDOM. Every pick must visibly reflect their budget, who they travel with,
    their vibes, pace, stay type, transit, and especially their free-text "extras" notes. In whyItFits,
    name the specific answers it satisfies. If a pick wouldn't clearly delight THIS person, drop it.
-3. SURPRISE, BUT STAY RELEVANT. Aim for a mix: at least one lesser-known gem they probably haven't
-   considered, plus well-loved places when they genuinely fit. Avoid only the most clichéd tourist traps
-   when a better-fitting option exists. Quality of fit beats obscurity.
+3. SURPRISE, BUT STAY RELEVANT. Lean toward fresh, less-saturated picks — at least 2 of the 3 should be
+   places this traveler probably hasn't already considered. ACTIVELY AVOID the over-recommended clichés
+   (Kotor, Dubrovnik, Split, Santorini, Mykonos, Amalfi/Positano, Venice, Paris, Barcelona) UNLESS the
+   traveler explicitly names them — and never suggest them if their notes hint at "not touristy" or
+   "off the beaten path". Quality of fit beats obscurity, but boring/obvious is a fail.
 4. EVERYTHING ON A TRAY. Itemise real costs: flights (per person + airline/route), hotel (with board type —
    all-inclusive / B&B / room-only), food (a nice restaurant dinner price AND cheap local eats, or "covered"
    if all-inclusive), car rental, extras, and a realistic TOTAL. Compute for the party (Solo=1, Partner=2,
@@ -157,59 +159,6 @@ RULES:
 
 Pick exactly 3 destinations that genuinely fit. Infer weather from the dates + vibes. Keep each field short.`;
 
-// fetch with a hard timeout so a slow/hung photo lookup never blocks results.
-async function fetchT(url, opts = {}, ms = 4000) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), ms);
-  try {
-    return await fetch(url, { ...opts, signal: ctrl.signal });
-  } finally {
-    clearTimeout(id);
-  }
-}
-
-// Fetch a real, on-topic photo for a destination. Unsplash (beautiful) if a key
-// is set, otherwise Wikipedia (accurate). Returns a URL or null. Never throws.
-async function getPhoto(name, country) {
-  const key = process.env.UNSPLASH_ACCESS_KEY;
-  if (key) {
-    try {
-      const r = await fetchT(
-        `https://api.unsplash.com/search/photos?per_page=1&orientation=landscape&query=${encodeURIComponent(
-          `${name} ${country}`,
-        )}`,
-        { headers: { Authorization: `Client-ID ${key}` } },
-      );
-      if (r.ok) {
-        const j = await r.json();
-        const u = j.results?.[0]?.urls?.regular;
-        if (u) return u;
-      }
-    } catch {}
-  }
-
-  // First real place name only (drop "& Osaka", "(area)", etc.) — avoids
-  // falling back to a country page, which on Wikipedia is often just a flag/map.
-  const cleanName = name.split(/[(,&/]|\s-\s/)[0].trim();
-  for (const title of [cleanName]) {
-    try {
-      const r = await fetchT(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
-        { headers: { "User-Agent": "wandr-travel-app/1.0" } },
-      );
-      if (r.ok) {
-        const j = await r.json();
-        let u = j.originalimage?.source || j.thumbnail?.source;
-        if (u && j.thumbnail?.source && !j.originalimage?.source) {
-          u = u.replace(/\/\d+px-/, "/1024px-");
-        }
-        if (u) return u;
-      }
-    } catch {}
-  }
-  return null;
-}
-
 export async function POST(request) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json(
@@ -223,10 +172,11 @@ export async function POST(request) {
     const client = new Anthropic();
     const from = answers.from || "my city";
 
-    const response = await client.messages.create({
+    // Stream the model output so the client can render each destination the
+    // moment it finishes — no waiting for all 3. (Photos load separately.)
+    const stream = client.messages.stream({
       model: "claude-sonnet-4-6",
       max_tokens: 16000,
-      thinking: { type: "adaptive" },
       output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
       system: SYSTEM_PROMPT,
       messages: [
@@ -237,24 +187,32 @@ export async function POST(request) {
       ],
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock) {
-      throw new Error(
-        `No text in response (stop_reason: ${response.stop_reason}). Try again.`,
-      );
-    }
-    const data = JSON.parse(textBlock.text);
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === "content_block_delta" &&
+              event.delta?.type === "text_delta"
+            ) {
+              controller.enqueue(encoder.encode(event.delta.text));
+            }
+          }
+        } catch (err) {
+          console.error("Stream error:", err);
+        } finally {
+          controller.close();
+        }
+      },
+    });
 
-    // Attach a real photo to each destination (in parallel).
-    if (Array.isArray(data.destinations)) {
-      await Promise.all(
-        data.destinations.map(async (d) => {
-          d.imageUrl = await getPhoto(d.name, d.country);
-        }),
-      );
-    }
-
-    return Response.json(data);
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
   } catch (err) {
     console.error("Destinations API error:", err);
     return Response.json(

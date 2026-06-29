@@ -6,7 +6,7 @@ import Link from "next/link";
 const LOADING_MESSAGES = [
   "Scanning the whole world...",
   "Matching your taste, not the tourist crowds...",
-  "Comparing flights, stays and prices...",
+  "Pricing flights, stays and food...",
   "Laying your trip out on a tray...",
   "Almost ready...",
 ];
@@ -17,6 +17,41 @@ const slug = (s) =>
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
+
+// Pull every COMPLETE destination object out of the streaming JSON so we can
+// render each card the moment it finishes — without waiting for all three.
+function parseStreamed(text) {
+  const start = text.indexOf("[");
+  if (start < 0) return [];
+  const objs = [];
+  let depth = 0,
+    inStr = false,
+    esc = false,
+    objStart = -1;
+  for (let i = start + 1; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === "{") {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && objStart >= 0) {
+        try {
+          objs.push(JSON.parse(text.slice(objStart, i + 1)));
+        } catch {}
+        objStart = -1;
+      }
+    }
+  }
+  return objs;
+}
 
 export default function Results() {
   const [status, setStatus] = useState("loading"); // loading | done | error
@@ -31,32 +66,76 @@ export default function Results() {
       setError("No quiz answers found. Take the quiz first.");
       return;
     }
-
     try {
       setDepartureCity(JSON.parse(saved).from || "");
     } catch {}
 
-    async function getDestinations() {
+    let cancelled = false;
+    async function run() {
       try {
         const res = await fetch("/api/destinations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: saved,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Request failed");
-        setDestinations(data.destinations);
-        setStatus("done");
+        if (!res.ok || !res.body) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.error || "Request failed");
+        }
+
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let text = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (value) {
+            text += dec.decode(value, { stream: true });
+            const objs = parseStreamed(text);
+            if (!cancelled && objs.length) setDestinations(objs);
+          }
+          if (done) break;
+        }
+        if (cancelled) return;
+
+        const finalObjs = parseStreamed(text);
+        setDestinations(finalObjs);
+        if (finalObjs.length) {
+          setStatus("done");
+        } else {
+          setStatus("error");
+          setError("No destinations came back. Please try again.");
+        }
       } catch (err) {
-        setError(err.message);
-        setStatus("error");
+        if (!cancelled) {
+          setError(err.message);
+          setStatus("error");
+        }
       }
     }
-
-    getDestinations();
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (status === "loading") return <LoadingScreen />;
+  if (destinations.length === 0 && status === "loading") return <LoadingScreen />;
+
+  if (destinations.length === 0 && status === "error") {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center bg-[#F6F2EA] px-6 text-center">
+        <h1 className="font-display text-4xl font-semibold text-stone-800">
+          Hmm, that didn&apos;t work.
+        </h1>
+        <p className="mt-3 text-stone-500">{error}</p>
+        <Link
+          href="/quiz"
+          className="mt-6 rounded-full bg-teal-700 px-6 py-3 font-semibold text-white transition hover:bg-teal-800"
+        >
+          Back to quiz
+        </Link>
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col items-center bg-[#F6F2EA] px-6 py-14">
@@ -66,37 +145,28 @@ export default function Results() {
       <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight text-stone-800">
         Your 3 escapes
       </h1>
+      <p className="mt-3 text-stone-500">Three places, fully costed. Tap one to dig in.</p>
 
-      {status === "error" && (
-        <div className="mt-12 max-w-md text-center">
-          <p className="text-lg font-medium text-stone-700">Hmm, that didn&apos;t work.</p>
-          <p className="mt-2 text-sm text-stone-500">{error}</p>
-          <Link
-            href="/quiz"
-            className="mt-6 inline-block rounded-full bg-teal-700 px-6 py-3 font-semibold text-white transition hover:bg-teal-800"
-          >
-            Back to quiz
-          </Link>
+      <div className="mt-10 grid w-full max-w-xl gap-10">
+        {destinations.map((d, i) => (
+          <DestinationCard key={i} d={d} index={i + 1} departureCity={departureCity} />
+        ))}
+      </div>
+
+      {status === "loading" && (
+        <div className="mt-8 flex items-center gap-3 text-stone-400">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-teal-600" />
+          <span className="text-sm">Finding more…</span>
         </div>
       )}
 
       {status === "done" && (
-        <>
-          <p className="mt-3 text-stone-500">Three places, fully costed. Tap one to dig in.</p>
-
-          <div className="mt-10 grid w-full max-w-xl gap-10">
-            {destinations.map((d, i) => (
-              <DestinationCard key={i} d={d} index={i + 1} departureCity={departureCity} />
-            ))}
-          </div>
-
-          <Link
-            href="/quiz"
-            className="mt-12 rounded-full border border-stone-300 px-7 py-3 font-medium text-stone-700 transition hover:border-stone-400 hover:bg-white"
-          >
-            Plan another trip
-          </Link>
-        </>
+        <Link
+          href="/quiz"
+          className="mt-12 rounded-full border border-stone-300 px-7 py-3 font-medium text-stone-700 transition hover:border-stone-400 hover:bg-white"
+        >
+          Plan another trip
+        </Link>
       )}
     </main>
   );
@@ -126,9 +196,26 @@ function LoadingScreen() {
 
 function DestinationCard({ d, index, departureCity }) {
   const [open, setOpen] = useState(false);
+  const [photo, setPhoto] = useState(null);
   const [imgError, setImgError] = useState(false);
 
-  const imageUrl = d.imageUrl;
+  // Each card fetches its own real photo (keeps the Unsplash key server-side).
+  useEffect(() => {
+    let live = true;
+    fetch("/api/photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: d.name, country: d.country }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (live) setPhoto(j.url);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [d.name, d.country]);
 
   const flightsUrl = `https://www.skyscanner.com/transport/flights/${slug(
     departureCity,
@@ -140,11 +227,10 @@ function DestinationCard({ d, index, departureCity }) {
 
   return (
     <article className="overflow-hidden rounded-2xl bg-white shadow-[0_6px_40px_rgba(40,30,15,0.10)]">
-      {/* Full-bleed magazine image */}
       <div className="relative h-64 bg-gradient-to-br from-teal-800 to-teal-600">
-        {imageUrl && !imgError ? (
+        {photo && !imgError ? (
           <img
-            src={imageUrl}
+            src={photo}
             alt={`${d.name}, ${d.country}`}
             onError={() => setImgError(true)}
             className="h-64 w-full object-cover"
@@ -158,7 +244,6 @@ function DestinationCard({ d, index, departureCity }) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
 
-        {/* Magazine index */}
         <span className="absolute left-5 top-4 font-display text-2xl font-semibold text-white/90">
           {String(index).padStart(2, "0")}
         </span>
@@ -173,11 +258,8 @@ function DestinationCard({ d, index, departureCity }) {
         </div>
       </div>
 
-      {/* Body */}
       <div className="p-7">
-        <p className="font-display text-xl leading-relaxed text-stone-700">
-          {d.description}
-        </p>
+        <p className="font-display text-xl leading-relaxed text-stone-700">{d.description}</p>
 
         <div className="mt-6 flex items-center justify-between gap-3">
           <span className="font-display text-lg font-semibold text-teal-800">
@@ -246,7 +328,6 @@ function DestinationCard({ d, index, departureCity }) {
               </ul>
             </div>
 
-            {/* Booking */}
             <div className="space-y-2 pt-1">
               <Label>Ready to book?</Label>
               <a
@@ -283,9 +364,7 @@ function DestinationCard({ d, index, departureCity }) {
 
 function Label({ children }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
-      {children}
-    </p>
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">{children}</p>
   );
 }
 
