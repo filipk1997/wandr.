@@ -44,7 +44,7 @@ const SCHEMA = {
               hotel: {
                 type: "string",
                 description:
-                  "Nightly price + total for the stay, with board type (all-inclusive / B&B / room-only). For ~30+ nights, a MONTHLY apartment rental.",
+                  "The stay, MATCHED to their chosen 'stay' type. All-inclusive resort → all-in nightly + total, food covered. Private villa → price the WHOLE villa rental (nightly + total) AND the per-person cost split among the party. Hotel/apartment/boutique → nightly + total with board type. For ~30+ nights, a MONTHLY rate.",
               },
               food: {
                 type: "string",
@@ -146,6 +146,8 @@ RULES:
    Family≈4, Friends≈4) and the number of nights between their dates. For ~30+ nights, price a MONTHLY
    apartment + a short long-stay/visa note. Ranges are perfect — honest and concrete, like a friend would.
    priceFrom = a short, enticing PER-PERSON entry price ("From €X pp"); the big total goes only in costs.total.
+   MATCH the stay to their "stay" answer: all-inclusive resort (food covered), a whole PRIVATE VILLA (price the
+   entire place + the per-person split — ideal for families/groups), hotel, apartment, or boutique stay.
 5. AFFORDABILITY. Compare the total to their budget; say plainly if it fits or is a stretch, then how to spend
    the budget well (all-inclusive upgrade, nicer hotel, extra nights).
 6. GETTING THERE from their departure city: realistic flights; include a CAR option ONLY when the place is

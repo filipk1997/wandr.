@@ -200,7 +200,7 @@ function DestinationCard({ d, index, departureCity }) {
               <Label>What it costs</Label>
               <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
                 <CostLine label="Flights" value={c.flights} />
-                <CostLine label="Hotel" value={c.hotel} />
+                <CostLine label="Stay" value={c.hotel} />
                 <CostLine label="Food" value={c.food} />
                 <CostLine label="Car" value={c.carRental} />
                 <CostLine label="Extras" value={c.extras} />

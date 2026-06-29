@@ -42,58 +42,26 @@ const QUESTIONS = [
     sub: "Pick as many as you like.",
     type: "multi",
     options: [
-      { value: "beach", label: "🏖️ Beach days" },
-      { value: "city", label: "🏙️ City buzz" },
-      { value: "adventure", label: "🧗 Adventure" },
+      { value: "beach", label: "🏖️ Beach & sea" },
+      { value: "city", label: "🌆 City & nightlife" },
       { value: "culture", label: "🏛️ Culture & history" },
-      { value: "relax", label: "🧘 Pure relaxation" },
       { value: "food_wine", label: "🍷 Food & wine" },
-      { value: "nightlife", label: "🌃 Nightlife" },
-      { value: "nature", label: "🏞️ Nature & outdoors" },
-      { value: "wellness", label: "🧖 Wellness & spa" },
-      { value: "festivals", label: "🎶 Festivals & music" },
-      { value: "hidden", label: "💎 Hidden gems" },
-      { value: "mountains", label: "🏔️ Mountains" },
-      { value: "coast", label: "🌊 Coast & sea" },
-      { value: "urban", label: "🌆 Big city" },
-      { value: "countryside", label: "🌾 Countryside" },
-      { value: "desert", label: "🏜️ Desert" },
-      { value: "tropical", label: "🌴 Tropical" },
-    ],
-  },
-  {
-    id: "pace",
-    headline: "What's your travel speed?",
-    sub: "",
-    type: "single",
-    options: [
-      { value: "slow", label: "🐢 Slow & relaxed", hint: "Long mornings, no rush" },
-      { value: "balanced", label: "⚖️ Balanced", hint: "A bit of both" },
-      { value: "action", label: "⚡ Action-packed", hint: "See it all" },
+      { value: "nature", label: "🌿 Nature & outdoors" },
+      { value: "relax", label: "🧘 Relax & wellness" },
+      { value: "adventure", label: "🧗 Adventure" },
     ],
   },
   {
     id: "stay",
-    headline: "Where do you want to crash?",
+    headline: "Where do you want to stay?",
     sub: "Pick as many as you like.",
     type: "multi",
     options: [
       { value: "hotel", label: "🏨 Hotel" },
-      { value: "apartment", label: "🏡 Apartment / Airbnb" },
-      { value: "unique", label: "🏕️ Unique stays" },
-      { value: "luxury", label: "🌟 Luxury resort" },
-      { value: "hostel", label: "🛏️ Hostel / budget" },
-    ],
-  },
-  {
-    id: "transit",
-    headline: "How do you like to explore?",
-    sub: "Pick as many as you like.",
-    type: "multi",
-    options: [
-      { value: "train", label: "🚆 By train" },
-      { value: "car_rent", label: "🚗 Road trip" },
-      { value: "bike_friendly", label: "🚲 Bike & on foot" },
+      { value: "resort", label: "🌴 All-inclusive resort" },
+      { value: "villa", label: "🏡 Private villa (whole place)" },
+      { value: "apartment", label: "🏖️ Apartment / Airbnb" },
+      { value: "boutique", label: "✨ Boutique / unique stay" },
     ],
   },
   {
@@ -179,7 +147,7 @@ export default function Quiz() {
             ← Back
           </button>
           <span className="text-slate-400">
-            {isLast ? "Almost there ✨" : `Question ${step + 1} of ${QUESTIONS.length}`}
+            {isLast ? "Last one ✨" : `${Math.round(progress)}% there`}
           </span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
