@@ -1,4 +1,5 @@
 import { Fraunces, Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 // Editorial serif for headlines — elegant, magazine-like.
@@ -25,6 +26,11 @@ export default function RootLayout({ children }) {
       className={`${fraunces.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
+      {/* Travelpayouts "Drive" — monetizes travel links (account 545763). */}
+      <Script
+        src="https://emrldtp.cc/NTQ1NzYz.js?t=545763"
+        strategy="afterInteractive"
+      />
     </html>
   );
 }
