@@ -6,8 +6,7 @@ import Link from "next/link";
 const LOADING_MESSAGES = [
   "Scanning the whole world...",
   "Matching your taste, not the tourist crowds...",
-  "Pricing flights, stays and food...",
-  "Laying your trip out on a tray...",
+  "Finding places worth the flight...",
   "Almost ready...",
 ];
 
@@ -56,10 +55,20 @@ function parseStreamed(text) {
 export default function Results() {
   const [status, setStatus] = useState("loading"); // loading | done | error
   const [destinations, setDestinations] = useState([]);
-  const [departureCity, setDepartureCity] = useState("");
+  const [answers, setAnswers] = useState(null);
   const [error, setError] = useState("");
 
+  // Unlock gate: once an email is captured, the paid-cost details load.
+  const [email, setEmail] = useState(null);
+  const [gateOpen, setGateOpen] = useState(false);
+  const unlocked = Boolean(email);
+
   useEffect(() => {
+    try {
+      const e = localStorage.getItem("wandr_email");
+      if (e) setEmail(e);
+    } catch {}
+
     const saved = localStorage.getItem("wandr_answers");
     if (!saved) {
       setStatus("error");
@@ -67,7 +76,7 @@ export default function Results() {
       return;
     }
     try {
-      setDepartureCity(JSON.parse(saved).from || "");
+      setAnswers(JSON.parse(saved));
     } catch {}
 
     let cancelled = false;
@@ -118,6 +127,14 @@ export default function Results() {
     };
   }, []);
 
+  function handleUnlock(value) {
+    try {
+      localStorage.setItem("wandr_email", value);
+    } catch {}
+    setEmail(value);
+    setGateOpen(false);
+  }
+
   if (destinations.length === 0 && status === "loading") return <LoadingScreen />;
 
   if (destinations.length === 0 && status === "error") {
@@ -145,11 +162,22 @@ export default function Results() {
       <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight text-stone-800">
         Your 3 escapes
       </h1>
-      <p className="mt-3 text-stone-500">Three places, fully costed. Tap one to dig in.</p>
+      <p className="mt-3 text-stone-500">
+        {unlocked
+          ? "Three places, fully costed. Everything on a tray."
+          : "Three places, matched to you. Unlock the full plans below."}
+      </p>
 
       <div className="mt-10 grid w-full max-w-xl gap-10">
         {destinations.map((d, i) => (
-          <DestinationCard key={i} d={d} index={i + 1} departureCity={departureCity} />
+          <DestinationCard
+            key={i}
+            d={d}
+            index={i + 1}
+            answers={answers}
+            unlocked={unlocked}
+            onUnlock={() => setGateOpen(true)}
+          />
         ))}
       </div>
 
@@ -167,6 +195,10 @@ export default function Results() {
         >
           Plan another trip
         </Link>
+      )}
+
+      {gateOpen && (
+        <EmailGate onUnlock={handleUnlock} onClose={() => setGateOpen(false)} />
       )}
     </main>
   );
@@ -194,10 +226,16 @@ function LoadingScreen() {
   );
 }
 
-function DestinationCard({ d, index, departureCity }) {
-  const [open, setOpen] = useState(false);
+function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
   const [photo, setPhoto] = useState(null);
   const [imgError, setImgError] = useState(false);
+
+  // Stage-2 details — the paid cost. Only fetched once the user has unlocked.
+  const [details, setDetails] = useState(null);
+  const [detailStatus, setDetailStatus] = useState("idle"); // idle | loading | done | error
+  const [retry, setRetry] = useState(0);
+
+  const departureCity = answers?.from || "";
 
   // Each card fetches its own real photo (keeps the Unsplash key server-side).
   useEffect(() => {
@@ -217,13 +255,40 @@ function DestinationCard({ d, index, departureCity }) {
     };
   }, [d.name, d.country]);
 
+  // Load the heavy breakdown ONLY after unlock — so we never spend credits on
+  // visitors who don't convert.
+  useEffect(() => {
+    if (!unlocked || !answers) return;
+    let live = true;
+    setDetailStatus("loading");
+    fetch("/api/details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers, destination: { name: d.name, country: d.country } }),
+    })
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok || j.error) throw new Error(j.error || "Failed");
+        if (live) {
+          setDetails(j);
+          setDetailStatus("done");
+        }
+      })
+      .catch(() => {
+        if (live) setDetailStatus("error");
+      });
+    return () => {
+      live = false;
+    };
+  }, [unlocked, answers, d.name, d.country, retry]);
+
   const flightsUrl = `https://www.skyscanner.com/transport/flights/${slug(
     departureCity,
   )}/${slug(d.name)}/`;
   const hotelsUrl = `https://www.booking.com/search.html?ss=${encodeURIComponent(d.name)}`;
   const activitiesUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(d.name)}`;
 
-  const c = d.costs || {};
+  const c = details?.costs || {};
 
   return (
     <article className="overflow-hidden rounded-2xl bg-white shadow-[0_6px_40px_rgba(40,30,15,0.10)]">
@@ -248,6 +313,12 @@ function DestinationCard({ d, index, departureCity }) {
           {String(index).padStart(2, "0")}
         </span>
 
+        {typeof d.fit === "number" && (
+          <span className="absolute right-4 top-4 rounded-full bg-white/95 px-3 py-1 text-xs font-bold text-teal-800 shadow">
+            {d.fit}% match
+          </span>
+        )}
+
         <div className="absolute bottom-4 left-5 right-5">
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/80">
             {d.country}
@@ -260,105 +331,206 @@ function DestinationCard({ d, index, departureCity }) {
 
       <div className="p-7">
         <p className="font-display text-xl leading-relaxed text-stone-700">{d.description}</p>
+        {d.hook && <p className="mt-2 text-sm leading-relaxed text-stone-500">✦ {d.hook}</p>}
 
         <div className="mt-6 flex items-center justify-between gap-3">
-          <span className="font-display text-lg font-semibold text-teal-800">
-            {d.priceFrom || c.total}
-          </span>
-          <button
-            onClick={() => setOpen((o) => !o)}
-            className="flex-none rounded-full bg-teal-700 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800"
-          >
-            {open ? "Hide details" : "See details"}
-          </button>
+          <span className="font-display text-lg font-semibold text-teal-800">{d.priceFrom}</span>
         </div>
 
-        {open && (
-          <div className="mt-7 space-y-5 border-t border-stone-200 pt-6">
-            <Info label="Why it fits you" value={d.whyItFits} />
-            <Info label="Best time to go" value={d.bestTime} />
-
-            <div>
-              <Label>What it costs</Label>
-              <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
-                <CostLine label="Flights" value={c.flights} />
-                <CostLine label="Stay" value={c.hotel} />
-                <CostLine label="Food" value={c.food} />
-                <CostLine label="Car" value={c.carRental} />
-                <CostLine label="Extras" value={c.extras} />
-              </ul>
-              {c.total && (
-                <p className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900">
-                  {c.total}
+        {/* LOCKED: a blurred teaser of the real cost breakdown — the curiosity hook. */}
+        {!unlocked && (
+          <div className="mt-6 border-t border-stone-200 pt-6">
+            <div className="relative">
+              <div className="pointer-events-none select-none space-y-2 blur-[5px]" aria-hidden="true">
+                <TeaseLine icon="✈️" label="Flights" />
+                <TeaseLine icon="🏨" label="Hotel" />
+                <TeaseLine icon="🍜" label="Food" />
+                <TeaseLine icon="🚗" label="Car rental" />
+                <div className="mt-3 h-8 rounded-lg bg-teal-100" />
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
+                <p className="max-w-[16rem] text-sm font-medium text-stone-600">
+                  Exact costs, where to eat & where to book — ready.
                 </p>
-              )}
+                <button
+                  onClick={onUnlock}
+                  className="rounded-full bg-teal-700 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-teal-800"
+                >
+                  🔓 Unlock the full plan
+                </button>
+              </div>
             </div>
+          </div>
+        )}
 
-            {d.affordability && (
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                💡 {d.affordability}
-              </p>
+        {/* UNLOCKED: the real, fully-costed breakdown. */}
+        {unlocked && (
+          <div className="mt-7 border-t border-stone-200 pt-6">
+            {detailStatus !== "done" && detailStatus !== "error" && (
+              <div className="flex items-center gap-3 py-4 text-stone-400">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-teal-600" />
+                <span className="text-sm">Laying it out on a tray…</span>
+              </div>
             )}
 
-            <div>
-              <Label>Getting there{departureCity ? ` from ${departureCity}` : ""}</Label>
-              <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
-                {(d.gettingThere || []).map((g, k) => (
-                  <li key={k}>
-                    <span className="font-semibold text-stone-900">{g.mode}:</span> {g.detail}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {detailStatus === "error" && (
+              <button
+                onClick={() => setRetry((n) => n + 1)}
+                className="text-sm text-teal-700 underline"
+              >
+                Couldn&apos;t load details — tap to retry.
+              </button>
+            )}
 
-            <Info label="Beaches & scenery" value={d.beaches} />
-            <Info label="Where to eat" value={d.goodEats} />
+            {detailStatus === "done" && details && (
+              <div className="space-y-5">
+                <Info label="Why it fits you" value={details.whyItFits} />
+                <Info label="Best time to go" value={details.bestTime} />
 
-            <div>
-              <Label>Don&apos;t miss</Label>
-              <ul className="mt-2 flex flex-wrap gap-2">
-                {(d.topActivities || []).map((a, j) => (
-                  <li
-                    key={j}
-                    className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-700"
+                <div>
+                  <Label>What it costs</Label>
+                  <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
+                    <CostLine label="Flights" value={c.flights} />
+                    <CostLine label="Stay" value={c.hotel} />
+                    <CostLine label="Food" value={c.food} />
+                    <CostLine label="Car" value={c.carRental} />
+                    <CostLine label="Extras" value={c.extras} />
+                  </ul>
+                  {c.total && (
+                    <p className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900">
+                      {c.total}
+                    </p>
+                  )}
+                </div>
+
+                {details.affordability && (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    💡 {details.affordability}
+                  </p>
+                )}
+
+                <div>
+                  <Label>Getting there{departureCity ? ` from ${departureCity}` : ""}</Label>
+                  <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
+                    {(details.gettingThere || []).map((g, k) => (
+                      <li key={k}>
+                        <span className="font-semibold text-stone-900">{g.mode}:</span> {g.detail}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <Info label="Beaches & scenery" value={details.beaches} />
+                <Info label="Where to eat" value={details.goodEats} />
+
+                <div>
+                  <Label>Don&apos;t miss</Label>
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {(details.topActivities || []).map((a, j) => (
+                      <li
+                        key={j}
+                        className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-700"
+                      >
+                        {a}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <Label>Ready to book?</Label>
+                  <a
+                    href={flightsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full rounded-full bg-teal-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-800"
                   >
-                    {a}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              <Label>Ready to book?</Label>
-              <a
-                href={flightsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-full bg-teal-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-800"
-              >
-                ✈️ Search flights
-              </a>
-              <a
-                href={hotelsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-full border border-teal-700 px-5 py-3 text-center text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
-              >
-                🏨 Browse hotels
-              </a>
-              <a
-                href={activitiesUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-full border border-teal-700 px-5 py-3 text-center text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
-              >
-                🎯 Book activities
-              </a>
-            </div>
+                    ✈️ Search flights
+                  </a>
+                  <a
+                    href={hotelsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full rounded-full border border-teal-700 px-5 py-3 text-center text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
+                  >
+                    🏨 Browse hotels
+                  </a>
+                  <a
+                    href={activitiesUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full rounded-full border border-teal-700 px-5 py-3 text-center text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
+                  >
+                    🎯 Book activities
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
     </article>
+  );
+}
+
+function TeaseLine({ icon, label }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-stone-700">
+      <span>{icon}</span>
+      <span className="font-semibold">{label}:</span>
+      <span className="text-stone-400">€ 240 – 380 per person, return</span>
+    </div>
+  );
+}
+
+function EmailGate({ onUnlock, onClose }) {
+  const [value, setValue] = useState("");
+  const valid = /\S+@\S+\.\S+/.test(value);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl">
+        <h3 className="font-display text-2xl font-semibold text-stone-800">
+          Unlock your 3 full plans
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-stone-500">
+          Exact costs, where to eat, how to get there, and one-tap booking — for all three.
+          Pop in your email and it&apos;s yours.
+        </p>
+
+        <input
+          type="email"
+          inputMode="email"
+          autoFocus
+          placeholder="you@email.com"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && valid) onUnlock(value.trim());
+          }}
+          className="mt-5 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-lg text-slate-800 focus:border-teal-600 focus:outline-none"
+        />
+
+        <button
+          onClick={() => valid && onUnlock(value.trim())}
+          disabled={!valid}
+          className="mt-4 w-full rounded-full bg-teal-700 px-6 py-3.5 font-semibold text-white shadow-lg transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+        >
+          🔓 Unlock my 3 plans
+        </button>
+
+        <button
+          onClick={onClose}
+          className="mt-3 w-full text-center text-sm text-stone-400 transition hover:text-stone-600"
+        >
+          Maybe later
+        </button>
+
+        <p className="mt-4 text-center text-xs text-stone-400">
+          No spam. Just your trips. Unsubscribe anytime.
+        </p>
+      </div>
+    </div>
   );
 }
 
