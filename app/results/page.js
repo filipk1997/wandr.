@@ -131,6 +131,12 @@ export default function Results() {
     try {
       localStorage.setItem("wandr_email", value);
     } catch {}
+    // Save the email (fire-and-forget — never block the unlock on it).
+    fetch("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: value }),
+    }).catch(() => {});
     setEmail(value);
     setGateOpen(false);
   }
