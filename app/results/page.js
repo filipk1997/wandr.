@@ -145,7 +145,7 @@ export default function Results() {
 
   if (destinations.length === 0 && status === "error") {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center bg-[#F6F2EA] px-6 text-center">
+      <main className="flex flex-1 flex-col items-center justify-center bg-[#F8FAFC] px-6 text-center">
         <h1 className="font-display text-4xl font-semibold text-stone-800">
           Hmm, that didn&apos;t work.
         </h1>
@@ -161,7 +161,7 @@ export default function Results() {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center bg-[#F6F2EA] px-6 py-14">
+    <main className="flex flex-1 flex-col items-center bg-[#F8FAFC] px-6 py-14">
       <p className="text-xs font-medium uppercase tracking-[0.25em] text-teal-700">
         Curated for you
       </p>

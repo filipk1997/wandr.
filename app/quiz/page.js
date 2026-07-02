@@ -135,7 +135,7 @@ export default function Quiz() {
   }
 
   return (
-    <main className="flex flex-1 flex-col bg-[#F6F2EA] px-6 py-8">
+    <main className="flex flex-1 flex-col bg-[#F8FAFC] px-6 py-8">
       {/* Progress */}
       <div className="mx-auto w-full max-w-xl">
         <div className="mb-2 flex items-center justify-between text-sm">
