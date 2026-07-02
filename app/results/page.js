@@ -288,11 +288,35 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
     };
   }, [unlocked, answers, d.name, d.country, retry]);
 
-  const flightsUrl = `https://www.skyscanner.com/transport/flights/${slug(
-    departureCity,
-  )}/${slug(d.name)}/`;
-  const hotelsUrl = `https://www.booking.com/search.html?ss=${encodeURIComponent(d.name)}`;
-  const activitiesUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(d.name)}`;
+  // Pre-fill the booking links from the quiz so the user never re-enters
+  // their destination, dates, or party size.
+  const dates = answers?.dates || {};
+  const partyMap = { Solo: 1, Partner: 2, Family: 4, Friends: 4 };
+  const adults = partyMap[answers?.who] || 2;
+  const yymmdd = (s) => (s ? s.replaceAll("-", "").slice(2) : "");
+
+  const flightsUrl =
+    dates.start && dates.end
+      ? `https://www.skyscanner.net/transport/flights/${slug(departureCity)}/${slug(
+          d.name,
+        )}/${yymmdd(dates.start)}/${yymmdd(dates.end)}/?adults=${adults}`
+      : `https://www.skyscanner.net/transport/flights/${slug(departureCity)}/${slug(d.name)}/`;
+
+  const stayParams = new URLSearchParams({
+    ss: `${d.name}, ${d.country}`,
+    group_adults: String(adults),
+    no_rooms: "1",
+    group_children: "0",
+  });
+  if (dates.start && dates.end) {
+    stayParams.set("checkin", dates.start);
+    stayParams.set("checkout", dates.end);
+  }
+  const hotelsUrl = `https://www.booking.com/searchresults.html?${stayParams.toString()}`;
+
+  const activitiesUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(
+    `${d.name}, ${d.country}`,
+  )}`;
 
   const c = details?.costs || {};
 
