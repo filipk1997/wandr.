@@ -131,6 +131,16 @@ const QUESTIONS = [
   },
 ];
 
+// Split a leading emoji off a label so we can render it big on the tile.
+function splitEmoji(label) {
+  const parts = String(label).split(" ");
+  const hasEmoji = parts[0] && !/[a-z0-9€]/i.test(parts[0]);
+  return {
+    emoji: hasEmoji ? parts[0] : "",
+    text: hasEmoji ? parts.slice(1).join(" ") : label,
+  };
+}
+
 export default function Quiz() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -205,63 +215,78 @@ export default function Quiz() {
         {q.sub && <p className="mt-3 text-lg text-slate-500">{q.sub}</p>}
 
         <div className="mt-8">
-          {/* Single choice */}
+          {/* Single choice — premium tiles */}
           {q.type === "single" && (
-            <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {q.options.map((opt) => {
                 const selected = current === opt.value;
+                const { emoji, text } = splitEmoji(opt.label);
                 return (
                   <button
                     key={opt.value}
                     onClick={() => setAnswer(opt.value)}
-                    className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 text-left transition ${
+                    className={`group relative flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-left transition-all duration-200 [transform-style:preserve-3d] hover:z-10 hover:shadow-xl hover:[transform:perspective(700px)_rotateX(7deg)_translateY(-4px)_scale(1.03)] active:[transform:scale(0.97)] ${
                       selected
-                        ? "border-teal-600 bg-teal-50"
-                        : "border-slate-200 bg-white hover:border-slate-300"
+                        ? "border-teal-500 bg-teal-50 shadow-md ring-2 ring-teal-500/40"
+                        : "border-slate-200 bg-white hover:border-teal-300"
                     }`}
                   >
-                    <span>
-                      <span className="block text-lg font-semibold text-slate-800">
-                        {opt.label}
+                    {emoji && (
+                      <span
+                        className={`text-3xl transition-transform duration-200 group-hover:scale-110 ${
+                          selected ? "scale-110" : ""
+                        }`}
+                      >
+                        {emoji}
                       </span>
-                      {opt.hint && (
-                        <span className="text-sm text-slate-500">{opt.hint}</span>
-                      )}
-                    </span>
-                    {selected && <span className="text-xl text-teal-600">✓</span>}
+                    )}
+                    <span className="text-base font-semibold leading-tight text-slate-800">{text}</span>
+                    {opt.hint && <span className="text-xs leading-snug text-slate-400">{opt.hint}</span>}
+                    {selected && (
+                      <span className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-sm font-bold text-white shadow">
+                        ✓
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
           )}
 
-          {/* Multi-select (square checkboxes) */}
+          {/* Multi-select — premium tiles */}
           {q.type === "multi" && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               {q.options.map((opt) => {
                 const selected = Array.isArray(current) && current.includes(opt.value);
+                const { emoji, text } = splitEmoji(opt.label);
                 return (
                   <button
                     key={opt.value}
                     onClick={() => toggleMulti(opt.value)}
-                    className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left transition ${
+                    className={`group relative flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-left transition-all duration-200 [transform-style:preserve-3d] hover:z-10 hover:shadow-xl hover:[transform:perspective(700px)_rotateX(7deg)_translateY(-4px)_scale(1.03)] active:[transform:scale(0.97)] ${
                       selected
-                        ? "border-teal-600 bg-teal-50"
-                        : "border-slate-200 bg-white hover:border-slate-300"
+                        ? "border-teal-500 bg-teal-50 shadow-md ring-2 ring-teal-500/40"
+                        : "border-slate-200 bg-white hover:border-teal-300"
                     }`}
                   >
-                    <span
-                      className={`flex h-6 w-6 flex-none items-center justify-center rounded-md border-2 text-sm font-bold text-white transition ${
-                        selected
-                          ? "border-teal-600 bg-teal-600"
-                          : "border-slate-300 bg-white"
-                      }`}
-                    >
-                      {selected ? "✓" : ""}
-                    </span>
-                    <span className="text-lg font-medium text-slate-800">
-                      {opt.label}
-                    </span>
+                    {emoji && (
+                      <span
+                        className={`text-3xl transition-transform duration-200 group-hover:scale-110 ${
+                          selected ? "scale-110" : ""
+                        }`}
+                      >
+                        {emoji}
+                      </span>
+                    )}
+                    <span className="text-sm font-semibold leading-tight text-slate-800">{text}</span>
+                    {opt.hint && (
+                      <span className="text-[11px] leading-snug text-slate-400">{opt.hint}</span>
+                    )}
+                    {selected && (
+                      <span className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-sm font-bold text-white shadow">
+                        ✓
+                      </span>
+                    )}
                   </button>
                 );
               })}
