@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const LOADING_MESSAGES = [
-  "Scanning the whole world...",
-  "Matching your taste, not the tourist crowds...",
-  "Finding places worth the flight...",
-  "Almost ready...",
+  "Scanning the whole world for you…",
+  "Sniffing out hidden gems, skipping the tourist traps…",
+  "Pricing flights, stays, food — the whole trip…",
+  "Packing your 3 escapes…",
 ];
 
 const slug = (s) =>
@@ -285,12 +285,32 @@ function LoadingScreen() {
   }, []);
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-teal-800 to-teal-600 px-6 text-center">
+    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-teal-800 to-teal-600 px-6 text-center">
+      {/* Drifting travel bits */}
+      <span className="wandr-float absolute left-[12%] top-[22%] text-3xl opacity-70" style={{ animationDelay: "0s" }}>🌴</span>
+      <span className="wandr-float absolute right-[14%] top-[28%] text-3xl opacity-70" style={{ animationDelay: "0.6s" }}>☀️</span>
+      <span className="wandr-float absolute bottom-[22%] left-[18%] text-3xl opacity-70" style={{ animationDelay: "1.1s" }}>🧭</span>
+      <span className="wandr-float absolute bottom-[26%] right-[16%] text-3xl opacity-70" style={{ animationDelay: "1.6s" }}>🏖️</span>
+
       <h1 className="font-display text-6xl font-semibold tracking-tight text-white">
         wandr<span className="text-yellow-300">.</span>
       </h1>
-      <div className="mt-8 h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-      <p className="mt-6 font-display text-xl text-white/90">{LOADING_MESSAGES[i]}</p>
+
+      {/* Plane flying along a dashed arc */}
+      <div className="wandr-scene mt-6">
+        <svg viewBox="0 0 300 130" className="h-full w-full" fill="none" aria-hidden="true">
+          <path
+            d="M18,108 Q150,4 288,64"
+            stroke="rgba(255,255,255,0.45)"
+            strokeWidth="2"
+            strokeDasharray="3 7"
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="wandr-plane">✈️</div>
+      </div>
+
+      <p className="mt-2 font-display text-xl text-white/90">{LOADING_MESSAGES[i]}</p>
     </main>
   );
 }
@@ -365,18 +385,20 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
   const adults = partyMap[answers?.who] || 2;
   const yymmdd = (s) => (s ? s.replaceAll("-", "").slice(2) : "");
 
-  const flightsUrl =
+  // Google Flights reliably parses city names + dates (Skyscanner's path needs
+  // airport codes, which we don't have yet — real IATA links come with Travelpayouts).
+  const flightQuery =
     dates.start && dates.end
-      ? `https://www.skyscanner.net/transport/flights/${slug(departureCity)}/${slug(
-          d.name,
-        )}/${yymmdd(dates.start)}/${yymmdd(dates.end)}/?adults=${adults}`
-      : `https://www.skyscanner.net/transport/flights/${slug(departureCity)}/${slug(d.name)}/`;
+      ? `Flights from ${departureCity} to ${d.name}, ${d.country} on ${dates.start} through ${dates.end}`
+      : `Flights from ${departureCity} to ${d.name}, ${d.country}`;
+  const flightsUrl = `https://www.google.com/travel/flights?q=${encodeURIComponent(flightQuery)}`;
 
   const stayParams = new URLSearchParams({
     ss: `${d.name}, ${d.country}`,
     group_adults: String(adults),
     no_rooms: "1",
     group_children: "0",
+    selected_currency: "EUR",
   });
   if (dates.start && dates.end) {
     stayParams.set("checkin", dates.start);
