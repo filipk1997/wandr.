@@ -94,22 +94,21 @@ const SAMPLE_DESTINATIONS = [
 ];
 
 const SAMPLE_DETAILS = {
-  whyItFits:
-    "You wanted hidden, mild, and close — this is highland Macedonia at its quietest, an easy drive with no airport hassle.",
-  bestTime: "Early September: warm days (~22°C), crisp evenings, empty trails.",
+  whyItFits: "Hidden, mild and close — highland Macedonia at its quietest, no airport hassle.",
+  bestTime: "September — warm ~22°C, empty trails.",
   costs: {
-    flights: "No flight — ~2h drive from Skopje (fuel ≈ €25 return for two).",
-    hotel: "Boutique guesthouse: €45–70/night for a double, breakfast in. 4 nights ≈ €220.",
-    food: "Hearty local dinner €10–15pp; market lunch €4. ~€30/day for two.",
-    carRental: "Bring your own or rent ≈ €30/day — worth it to reach the villages.",
-    extras: "Lake, trails and monasteries are free; a guided hike ≈ €20pp.",
+    flights: "No flight — ~2h drive (fuel ≈ €25).",
+    hotel: "Guesthouse €45–70/night · ~€220 total.",
+    food: "~€30/day for two.",
+    carRental: "€30/day — worth it for the villages.",
+    extras: "Lake & trails free; guided hike ≈ €20pp.",
     total: "≈ €380 for two, 4 nights",
   },
-  affordability: "Comfortably within budget — spend the rest on a long lakeside lunch.",
-  beaches: "Berovo Lake for calm swims and pedal boats; pine trails all around.",
-  goodEats: "Local trout, smoked cheese, and forest-berry rakija at a village konoba.",
-  gettingThere: [{ mode: "Car", detail: "Skopje → Berovo ≈ 2h via Kočani, scenic mountain road." }],
-  topActivities: ["Lakeside walk", "Cheese-tasting at a highland farm", "Sunrise hike in the pines"],
+  affordability: "Comfortably within budget — splurge on a lakeside lunch.",
+  beaches: "Berovo Lake — calm swims, pine trails around.",
+  goodEats: "Trout, smoked cheese, berry rakija at a konoba.",
+  gettingThere: [{ mode: "Car", detail: "Skopje → Berovo ≈ 2h via Kočani." }],
+  topActivities: ["Lakeside walk", "Highland cheese-tasting", "Sunrise pine hike"],
 };
 
 export default function Results() {
@@ -522,13 +521,14 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
             )}
 
             {detailStatus === "done" && details && (
-              <div className="space-y-5">
-                <Info label="Why it fits you" value={details.whyItFits} />
-                <Info label="Best time to go" value={details.bestTime} />
+              <div className="space-y-4">
+                {details.whyItFits && (
+                  <p className="text-sm leading-relaxed text-stone-600">{details.whyItFits}</p>
+                )}
 
                 <div>
                   <Label>What it costs</Label>
-                  <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
+                  <ul className="mt-2 space-y-1 text-sm text-stone-700">
                     <CostLine label="Flights" value={c.flights} />
                     <CostLine label="Stay" value={c.hotel} />
                     <CostLine label="Food" value={c.food} />
@@ -536,7 +536,7 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
                     <CostLine label="Extras" value={c.extras} />
                   </ul>
                   {c.total && (
-                    <p className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900">
+                    <p className="mt-2 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900">
                       {c.total}
                     </p>
                   )}
@@ -548,19 +548,24 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
                   </p>
                 )}
 
-                <div>
-                  <Label>Getting there{departureCity ? ` from ${departureCity}` : ""}</Label>
-                  <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
-                    {(details.gettingThere || []).map((g, k) => (
-                      <li key={k}>
-                        <span className="font-semibold text-stone-900">{g.mode}:</span> {g.detail}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {(details.gettingThere || []).length > 0 && (
+                  <div>
+                    <Label>Getting there</Label>
+                    <ul className="mt-1.5 space-y-1 text-sm text-stone-700">
+                      {details.gettingThere.map((g, k) => (
+                        <li key={k}>
+                          <span className="font-semibold text-stone-900">{g.mode}:</span> {g.detail}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-                <Info label="Beaches & scenery" value={details.beaches} />
-                <Info label="Where to eat" value={details.goodEats} />
+                <div className="rounded-lg bg-stone-50 px-3 py-2.5 text-sm text-stone-600">
+                  {details.bestTime && <p>📅 {details.bestTime}</p>}
+                  {details.beaches && <p className="mt-1">🏖️ {details.beaches}</p>}
+                  {details.goodEats && <p className="mt-1">🍽️ {details.goodEats}</p>}
+                </div>
 
                 <div>
                   <Label>Don&apos;t miss</Label>

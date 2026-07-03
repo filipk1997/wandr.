@@ -9,45 +9,36 @@ const SCHEMA = {
   properties: {
     whyItFits: {
       type: "string",
-      description:
-        "Why this specifically matches THIS traveler's answers (budget, who, vibes, stay, notes). 1–2 sentences, concrete.",
+      description: "ONE sentence, max 18 words — why it fits THIS traveler (their vibes/who/notes).",
     },
     bestTime: {
       type: "string",
-      description: "Best time to visit + what the weather is like then.",
+      description: "Max 10 words — best month + the weather then.",
     },
     costs: {
       type: "object",
       description:
-        "Trip economics, itemised for the whole party + number of nights from their dates. Approximate ranges are great.",
+        "Itemised for the whole party + their nights. Each value is ONE short figure line, NOT a paragraph.",
       properties: {
         flights: {
           type: "string",
           description:
-            "Round-trip flight ballpark per person + likely airline/route. If they'd drive instead, say so.",
+            "Max 10 words. e.g. '€120–180 return, Wizz via Lisbon'. If drive-only: 'No flight — ~2h drive'.",
         },
         hotel: {
           type: "string",
           description:
-            "The stay, MATCHED to their chosen 'stay' type. All-inclusive resort → all-in nightly + total, food covered. Private villa → price the WHOLE villa rental (nightly + total) AND the per-person split. Hotel/apartment/boutique → nightly + total with board type. For ~30+ nights, a MONTHLY rate.",
+            "Max 12 words — nightly + total, matched to their stay type. e.g. '€80–130/night · ~€2,000 total'.",
         },
-        food: {
-          type: "string",
-          description:
-            "A nice restaurant dinner price, cheap/local eats price, and rough daily food budget. If all-inclusive, say food is mostly covered.",
-        },
+        food: { type: "string", description: "Max 9 words. e.g. '~€35–50/day for two'." },
         carRental: {
           type: "string",
-          description: "Per-day rental ballpark + whether it's worth it here.",
+          description: "Max 9 words. e.g. '€35/day, worth it' or 'Skip it — walkable'.",
         },
-        extras: {
-          type: "string",
-          description: "Activities/entries rough cost. Note when sights/beaches are free.",
-        },
+        extras: { type: "string", description: "Max 10 words. e.g. 'Beaches free; wine tastings €15–30'." },
         total: {
           type: "string",
-          description:
-            "Realistic TOTAL for the whole party, flights included, e.g. '≈ €1,300 for two, 5 nights'.",
+          description: "The all-in total. e.g. '≈ €4,200 solo, 20 nights'.",
         },
       },
       required: ["flights", "hotel", "food", "carRental", "extras", "total"],
@@ -55,27 +46,18 @@ const SCHEMA = {
     },
     affordability: {
       type: "string",
-      description:
-        "Verdict vs their budget: comfortably within / a stretch — AND how to spend the budget well.",
+      description: "ONE short line, max 16 words — fits / a stretch, plus the single best money-saving tip.",
     },
-    beaches: {
-      type: "string",
-      description: "Notable beaches / nature / scenery worth it here.",
-    },
-    goodEats: {
-      type: "string",
-      description:
-        "Food scene: what to eat + a nice restaurant and a local specialty with rough prices.",
-    },
+    beaches: { type: "string", description: "Max 12 words — the standout beach or nature spot." },
+    goodEats: { type: "string", description: "Max 12 words — what to eat + one place." },
     gettingThere: {
       type: "array",
-      description:
-        "1–3 realistic ways to get there from the departure city. Include CAR only when realistically drivable; for far destinations, flights only.",
+      description: "1–2 options MAX. Include CAR only if genuinely drivable.",
       items: {
         type: "object",
         properties: {
-          mode: { type: "string", description: "e.g. 'Flight', 'Car', 'Bus', 'Ferry'." },
-          detail: { type: "string", description: "Route + rough cost + time." },
+          mode: { type: "string", description: "'Flight', 'Car', 'Bus'…" },
+          detail: { type: "string", description: "ONE short line, max 12 words — route + cost + time." },
         },
         required: ["mode", "detail"],
         additionalProperties: false,
@@ -83,7 +65,7 @@ const SCHEMA = {
     },
     topActivities: {
       type: "array",
-      description: "Exactly 3 short activity ideas.",
+      description: "Exactly 3, each max 6 words.",
       items: { type: "string" },
     },
   },
@@ -100,22 +82,15 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-const SYSTEM_PROMPT = `You are wandr — a sharp, well-travelled friend who lays a trip out on a tray:
-why it fits YOU, and exactly what it costs. Voice: relaxed, energetic, "you/your". No corporate tone.
+const SYSTEM_PROMPT = `You are wandr — a sharp, well-travelled friend. Lay ONE trip on a tray, but TERSE:
+the traveler scans this in 10 seconds. Every field is ONE short line — figures, not paragraphs. No essays,
+no repetition, no filler. Voice: relaxed, "you/your".
 
-You are given ONE chosen destination plus the traveler's full answers. Cost it out HONESTLY:
-- Itemise real costs: flights (per person + airline/route), the stay MATCHED to their 'stay' answer
-  (all-inclusive resort → food covered; private villa → whole-place price + per-person split; hotel/
-  apartment/boutique → nightly + total with board type; ~30+ nights → a MONTHLY rate), food (nice
-  restaurant dinner AND cheap local eats, or "covered" if all-inclusive), car rental, extras, and a
-  realistic TOTAL. Compute for the party (Solo=1, Partner=2, Family≈4, Friends≈4) and the nights between
-  their dates. Ranges are perfect — honest and concrete, like a friend would.
-- Affordability: compare the total to their budget; say plainly if it fits or is a stretch, then how to
-  spend the budget well.
-- Getting there from their departure city: realistic flights; include a CAR option ONLY when genuinely
-  drivable from there — for far destinations, don't force a car.
-- Also cover beaches/scenery and the food scene so they can picture the whole holiday.
-Keep every field short.`;
+Cost it honestly for the party (Solo=1, Partner=2, Family≈4, Friends≈4) and the nights between their dates.
+Match the stay to their 'stay' answer (resort = food covered; villa = whole-place price; hotel/apartment/
+boutique = nightly + total). Ranges are fine. Include a CAR only if genuinely drivable; for far places,
+flights only; for a nearby drive-only trip say "No flight — drive" in flights. Put the single best
+money-saving tip in affordability. Keep everything SHORT.`;
 
 export async function POST(request) {
   if (!process.env.ANTHROPIC_API_KEY) {
