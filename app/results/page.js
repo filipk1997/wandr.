@@ -66,6 +66,8 @@ const SAMPLE_DESTINATIONS = [
     hook: "A 2-hour drive from Skopje into real highland life, with zero tourists.",
     priceFrom: "From €110 pp",
     allIn: "≈ €380 all-in for two",
+    originAirport: "skp",
+    airport: "",
   },
   {
     name: "Berat",
@@ -75,6 +77,8 @@ const SAMPLE_DESTINATIONS = [
     hook: "Still genuinely off the radar — boutique stone guesthouses, mild September sun.",
     priceFrom: "From €180 pp",
     allIn: "≈ €620 all-in for two",
+    originAirport: "skp",
+    airport: "tia",
   },
   {
     name: "Mavrovo",
@@ -84,6 +88,8 @@ const SAMPLE_DESTINATIONS = [
     hook: "Nature-and-culture combo under 2 hours by car — cabins in the pines.",
     priceFrom: "From €95 pp",
     allIn: "≈ €340 all-in for two",
+    originAirport: "skp",
+    airport: "",
   },
 ];
 
@@ -385,13 +391,16 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
   const adults = partyMap[answers?.who] || 2;
   const yymmdd = (s) => (s ? s.replaceAll("-", "").slice(2) : "");
 
-  // Google Flights reliably parses city names + dates (Skyscanner's path needs
-  // airport codes, which we don't have yet — real IATA links come with Travelpayouts).
-  const flightQuery =
-    dates.start && dates.end
-      ? `Flights from ${departureCity} to ${d.name}, ${d.country} on ${dates.start} through ${dates.end}`
-      : `Flights from ${departureCity} to ${d.name}, ${d.country}`;
-  const flightsUrl = `https://www.google.com/travel/flights?q=${encodeURIComponent(flightQuery)}`;
+  // Flights only when the destination has a real airport (skip drive-only picks).
+  // IATA codes make the Skyscanner deep-link actually resolve.
+  const canFly = d.originAirport && d.airport && d.originAirport !== d.airport;
+  const flightsUrl = !canFly
+    ? null
+    : dates.start && dates.end
+      ? `https://www.skyscanner.net/transport/flights/${d.originAirport}/${d.airport}/${yymmdd(
+          dates.start,
+        )}/${yymmdd(dates.end)}/?adults=${adults}`
+      : `https://www.skyscanner.net/transport/flights/${d.originAirport}/${d.airport}/`;
 
   const stayParams = new URLSearchParams({
     ss: `${d.name}, ${d.country}`,
@@ -569,14 +578,20 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
 
                 <div className="space-y-2 pt-1">
                   <Label>Ready to book?</Label>
-                  <a
-                    href={flightsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full rounded-full bg-teal-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-800"
-                  >
-                    ✈️ Search flights
-                  </a>
+                  {flightsUrl ? (
+                    <a
+                      href={flightsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full rounded-full bg-teal-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-800"
+                    >
+                      ✈️ Search flights
+                    </a>
+                  ) : (
+                    <p className="rounded-full bg-stone-100 px-5 py-3 text-center text-sm font-medium text-stone-600">
+                      🚗 No flight needed — it&apos;s a drive (see “Getting there”)
+                    </p>
+                  )}
                   <a
                     href={hotelsUrl}
                     target="_blank"

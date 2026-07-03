@@ -39,8 +39,28 @@ const SCHEMA = {
             description:
               "Honest match score 0-100 for how well this suits THIS traveler's answers. Use the 80-97 range; reserve 93+ for a near-perfect fit.",
           },
+          originAirport: {
+            type: "string",
+            description:
+              "Lowercase IATA code of the departure city's main airport (e.g. 'skp' for Skopje, 'lhr' for London). Empty string if you truly can't map it.",
+          },
+          airport: {
+            type: "string",
+            description:
+              "Lowercase IATA code of the nearest sensible airport for THIS destination (e.g. 'bcn' for Barcelona, 'tia' for anywhere near Tirana). EMPTY STRING if this is a drive-only trip with no real flight (e.g. a village a couple hours from the departure city).",
+          },
         },
-        required: ["name", "country", "description", "hook", "priceFrom", "allIn", "fit"],
+        required: [
+          "name",
+          "country",
+          "description",
+          "hook",
+          "priceFrom",
+          "allIn",
+          "fit",
+          "originAirport",
+          "airport",
+        ],
         additionalProperties: false,
       },
     },
