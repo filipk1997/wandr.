@@ -8,6 +8,67 @@ import { useRouter } from "next/navigation";
 //   dates  = start + end    text  = free text
 const QUESTIONS = [
   {
+    id: "region",
+    headline: "Where's calling you?",
+    sub: "Pick as many as you like — or let us surprise you.",
+    type: "multi",
+    options: [
+      {
+        value: "balkans",
+        label: "🌅 The Balkans",
+        hint: "Macedonia, Croatia, Montenegro, Slovenia, Albania, Bosnia, Serbia",
+      },
+      { value: "mediterranean", label: "🍋 Mediterranean", hint: "Spain, Italy, Greece, Portugal" },
+      { value: "alpine", label: "🏔️ Alpine Europe", hint: "Alps, Dolomites, Tatras" },
+      { value: "nordic", label: "❄️ Nordic & wild", hint: "Scandinavia, Iceland" },
+      { value: "sun_ancient", label: "🏜️ Sun & ancient", hint: "Morocco, Turkey, Egypt, Jordan" },
+      { value: "far_east", label: "🗾 Far East", hint: "Japan, Korea, Vietnam" },
+      { value: "tropical", label: "🌴 Tropical & far", hint: "SE Asia, Caribbean, Mexico" },
+      { value: "americas", label: "🌎 The Americas", hint: "USA, Latin America" },
+      { value: "surprise", label: "🎲 Surprise me", hint: "I'm open — anywhere" },
+    ],
+  },
+  {
+    id: "vibe",
+    headline: "What are you dreaming of?",
+    sub: "Pick as many as you like.",
+    type: "multi",
+    options: [
+      { value: "beach", label: "🏖️ Beach & sea" },
+      { value: "city", label: "🌆 City & nightlife" },
+      { value: "culture", label: "🏛️ Culture & history" },
+      { value: "food_wine", label: "🍷 Food & wine" },
+      { value: "nature", label: "🌿 Nature & outdoors" },
+      { value: "relax", label: "🧘 Relax & wellness" },
+      { value: "adventure", label: "🧗 Adventure" },
+      { value: "romance", label: "💞 Romance" },
+      { value: "festivals", label: "🎉 Festivals & events" },
+    ],
+  },
+  {
+    id: "discovery",
+    headline: "Iconic or hidden gem?",
+    sub: "Slide to your taste.",
+    type: "slider",
+    min: 0,
+    max: 100,
+    default: 55,
+    minLabel: "🗺️ Famous & iconic",
+    maxLabel: "🧭 Off the beaten path",
+  },
+  {
+    id: "weather",
+    headline: "What weather do you want?",
+    type: "single",
+    options: [
+      { value: "hot", label: "☀️ Hot & sunny" },
+      { value: "mild", label: "🌤️ Warm & mild" },
+      { value: "cool", label: "🍂 Cool & crisp" },
+      { value: "snow", label: "❄️ Snow & cozy" },
+      { value: "any", label: "🤷 Any — surprise me" },
+    ],
+  },
+  {
     id: "budget",
     headline: "What's your budget?",
     sub: "Per person, flights + stay. A ballpark is fine.",
@@ -37,42 +98,19 @@ const QUESTIONS = [
     ],
   },
   {
-    id: "vibe",
-    headline: "What are you dreaming of?",
-    sub: "Pick as many as you like.",
-    type: "multi",
-    options: [
-      { value: "beach", label: "🏖️ Beach & sea" },
-      { value: "city", label: "🌆 City & nightlife" },
-      { value: "culture", label: "🏛️ Culture & history" },
-      { value: "food_wine", label: "🍷 Food & wine" },
-      { value: "nature", label: "🌿 Nature & outdoors" },
-      { value: "relax", label: "🧘 Relax & wellness" },
-      { value: "adventure", label: "🧗 Adventure" },
-    ],
-  },
-  {
     id: "stay",
     headline: "Where do you want to stay?",
     sub: "Pick as many as you like.",
     type: "multi",
     options: [
-      { value: "hotel", label: "🏨 Hotel" },
-      { value: "resort", label: "🌴 All-inclusive resort" },
-      { value: "villa", label: "🏡 Private villa (whole place)" },
-      { value: "apartment", label: "🏖️ Apartment / Airbnb" },
-      { value: "boutique", label: "✨ Boutique / unique stay" },
-    ],
-  },
-  {
-    id: "flight",
-    headline: "How far are you willing to fly?",
-    sub: "",
-    type: "single",
-    options: [
-      { value: "short", label: "✈️ Short hop", hint: "Under 3 hours" },
-      { value: "medium", label: "🌍 Medium", hint: "3–6 hours" },
-      { value: "anywhere", label: "🚀 Anywhere", hint: "The world's open" },
+      { value: "resort", label: "🌊 Beachfront resort" },
+      { value: "boutique", label: "🏛️ Boutique hotel" },
+      { value: "villa", label: "🏡 Private villa + pool" },
+      { value: "cabin", label: "🏔️ Cozy cabin / chalet" },
+      { value: "apartment", label: "🏙️ Trendy apartment" },
+      { value: "unique", label: "🌿 Unique stay", hint: "riad, treehouse, overwater" },
+      { value: "budget", label: "🎒 Budget / hostel" },
+      { value: "farm", label: "🐄 Farm / agrotourism" },
     ],
   },
   {
@@ -113,13 +151,14 @@ export default function Quiz() {
   }
 
   // Is the current question answered? (controls the Next button)
-  const answered = q.optional
-    ? true
-    : q.type === "dates"
-      ? current?.start && current?.end
-      : q.type === "multi"
-        ? Array.isArray(current) && current.length > 0
-        : Boolean(current && String(current).trim());
+  const answered =
+    q.optional || q.type === "slider"
+      ? true
+      : q.type === "dates"
+        ? current?.start && current?.end
+        : q.type === "multi"
+          ? Array.isArray(current) && current.length > 0
+          : Boolean(current && String(current).trim());
 
   function goNext() {
     if (isLast) {
@@ -273,6 +312,25 @@ export default function Quiz() {
               onChange={(e) => setAnswer(e.target.value)}
               className="w-full resize-none rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-lg text-slate-800 focus:border-teal-600 focus:outline-none"
             />
+          )}
+
+          {/* Slider — taste scale (iconic ↔ hidden) */}
+          {q.type === "slider" && (
+            <div className="mt-2">
+              <input
+                type="range"
+                min={q.min}
+                max={q.max}
+                step="1"
+                value={current ?? q.default}
+                onChange={(e) => setAnswer(Number(e.target.value))}
+                className="w-full accent-teal-600"
+              />
+              <div className="mt-3 flex justify-between text-sm font-medium text-slate-500">
+                <span>{q.minLabel}</span>
+                <span>{q.maxLabel}</span>
+              </div>
+            </div>
           )}
         </div>
 
