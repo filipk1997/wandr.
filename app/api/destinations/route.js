@@ -29,13 +29,18 @@ const SCHEMA = {
             description:
               "Short, enticing entry price PER PERSON — JUST the price, exactly like 'From €420 pp'. Use the affordable end.",
           },
+          allIn: {
+            type: "string",
+            description:
+              "The reassuring ALL-IN total for the whole party (Solo=1, Partner=2, Family≈4, Friends≈4) for their nights — flights + stay + food + car + activities, one honest ballpark. Exactly like '≈ €1,250 all-in for two'. Short; this is the emotional 'everything sorted' number.",
+          },
           fit: {
             type: "integer",
             description:
               "Honest match score 0-100 for how well this suits THIS traveler's answers. Use the 80-97 range; reserve 93+ for a near-perfect fit.",
           },
         },
-        required: ["name", "country", "description", "hook", "priceFrom", "fit"],
+        required: ["name", "country", "description", "hook", "priceFrom", "allIn", "fit"],
         additionalProperties: false,
       },
     },

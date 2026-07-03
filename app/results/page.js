@@ -52,6 +52,60 @@ function parseStreamed(text) {
   return objs;
 }
 
+// DEV: when NEXT_PUBLIC_WANDR_MOCK=1, results use these samples instead of
+// calling the AI — so building/testing the quiz + design costs zero credits.
+// Flip the env var off (or unset) to go back to real, live results.
+const MOCK = process.env.NEXT_PUBLIC_WANDR_MOCK === "1";
+
+const SAMPLE_DESTINATIONS = [
+  {
+    name: "Berovo",
+    country: "North Macedonia",
+    fit: 94,
+    description: "Pine-forest calm at 900m — cool air, hand-made cheese, and a lake that mirrors the sky.",
+    hook: "A 2-hour drive from Skopje into real highland life, with zero tourists.",
+    priceFrom: "From €110 pp",
+    allIn: "≈ €380 all-in for two",
+  },
+  {
+    name: "Berat",
+    country: "Albania",
+    fit: 90,
+    description: "A thousand Ottoman windows stacked up a hillside above a river of wine and figs.",
+    hook: "Still genuinely off the radar — boutique stone guesthouses, mild September sun.",
+    priceFrom: "From €180 pp",
+    allIn: "≈ €620 all-in for two",
+  },
+  {
+    name: "Mavrovo",
+    country: "North Macedonia",
+    fit: 88,
+    description: "A national park of alpine meadows, a sunken church, and trout straight from the lake.",
+    hook: "Nature-and-culture combo under 2 hours by car — cabins in the pines.",
+    priceFrom: "From €95 pp",
+    allIn: "≈ €340 all-in for two",
+  },
+];
+
+const SAMPLE_DETAILS = {
+  whyItFits:
+    "You wanted hidden, mild, and close — this is highland Macedonia at its quietest, an easy drive with no airport hassle.",
+  bestTime: "Early September: warm days (~22°C), crisp evenings, empty trails.",
+  costs: {
+    flights: "No flight — ~2h drive from Skopje (fuel ≈ €25 return for two).",
+    hotel: "Boutique guesthouse: €45–70/night for a double, breakfast in. 4 nights ≈ €220.",
+    food: "Hearty local dinner €10–15pp; market lunch €4. ~€30/day for two.",
+    carRental: "Bring your own or rent ≈ €30/day — worth it to reach the villages.",
+    extras: "Lake, trails and monasteries are free; a guided hike ≈ €20pp.",
+    total: "≈ €380 for two, 4 nights",
+  },
+  affordability: "Comfortably within budget — spend the rest on a long lakeside lunch.",
+  beaches: "Berovo Lake for calm swims and pedal boats; pine trails all around.",
+  goodEats: "Local trout, smoked cheese, and forest-berry rakija at a village konoba.",
+  gettingThere: [{ mode: "Car", detail: "Skopje → Berovo ≈ 2h via Kočani, scenic mountain road." }],
+  topActivities: ["Lakeside walk", "Cheese-tasting at a highland farm", "Sunrise hike in the pines"],
+};
+
 export default function Results() {
   const [status, setStatus] = useState("loading"); // loading | done | error
   const [destinations, setDestinations] = useState([]);
@@ -68,6 +122,16 @@ export default function Results() {
       const e = localStorage.getItem("wandr_email");
       if (e) setEmail(e);
     } catch {}
+
+    // Mock mode: no API call, no credits — just show the samples.
+    if (MOCK) {
+      try {
+        setAnswers(JSON.parse(localStorage.getItem("wandr_answers") || "{}"));
+      } catch {}
+      setDestinations(SAMPLE_DESTINATIONS);
+      setStatus("done");
+      return;
+    }
 
     const saved = localStorage.getItem("wandr_answers");
     if (!saved) {
@@ -168,10 +232,9 @@ export default function Results() {
       <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight text-stone-800">
         Your 3 escapes
       </h1>
-      <p className="mt-3 text-stone-500">
-        {unlocked
-          ? "Three places, fully costed. Everything on a tray."
-          : "Three places, matched to you. Unlock the full plans below."}
+      <p className="mt-3 max-w-md text-stone-500">
+        Every escape below is fully costed — flights, stay, food, car and activities.
+        One honest all-in total. No surprises.
       </p>
 
       <div className="mt-10 grid w-full max-w-xl gap-10">
@@ -264,7 +327,14 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
   // Load the heavy breakdown ONLY after unlock — so we never spend credits on
   // visitors who don't convert.
   useEffect(() => {
-    if (!unlocked || !answers) return;
+    if (!unlocked) return;
+    // Mock mode: no API call, no credits.
+    if (MOCK) {
+      setDetails(SAMPLE_DETAILS);
+      setDetailStatus("done");
+      return;
+    }
+    if (!answers) return;
     let live = true;
     setDetailStatus("loading");
     fetch("/api/details", {
@@ -363,8 +433,16 @@ function DestinationCard({ d, index, answers, unlocked, onUnlock }) {
         <p className="font-display text-xl leading-relaxed text-stone-700">{d.description}</p>
         {d.hook && <p className="mt-2 text-sm leading-relaxed text-stone-500">✦ {d.hook}</p>}
 
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <span className="font-display text-lg font-semibold text-teal-800">{d.priceFrom}</span>
+        <div className="mt-6">
+          {d.allIn && (
+            <div className="rounded-xl bg-teal-50 px-4 py-3">
+              <p className="font-display text-xl font-semibold text-teal-900">{d.allIn}</p>
+              <p className="mt-1 text-xs font-medium text-teal-700">
+                ✈️ Flights · 🏨 Stay · 🍽️ Food · 🚗 Car · 🎟️ Activities — sorted
+              </p>
+            </div>
+          )}
+          <p className="mt-2 text-sm text-stone-500">{d.priceFrom}</p>
         </div>
 
         {/* LOCKED: a blurred teaser of the real cost breakdown — the curiosity hook. */}
