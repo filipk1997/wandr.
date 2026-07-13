@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Quiz flow. Types:
-//   single = pick one      multi = pick many (square checkboxes)
-//   dates  = start + end    text  = free text
+//   single = pick one   multi = pick many   dates = start+end
+//   slider = taste scale   origin = city autocomplete (structured IATA)
 const QUESTIONS = [
   {
     id: "region",
@@ -13,18 +13,18 @@ const QUESTIONS = [
     sub: "Pick as many as you like — or let us surprise you.",
     type: "multi",
     options: [
-      {
-        value: "balkans",
-        label: "🌅 The Balkans",
-        hint: "Macedonia, Croatia, Montenegro, Slovenia, Albania, Bosnia, Serbia",
-      },
-      { value: "mediterranean", label: "🍋 Mediterranean", hint: "Spain, Italy, Greece, Portugal" },
-      { value: "alpine", label: "🏔️ Alpine Europe", hint: "Alps, Dolomites, Tatras" },
-      { value: "nordic", label: "❄️ Nordic & wild", hint: "Scandinavia, Iceland" },
-      { value: "sun_ancient", label: "🏜️ Sun & ancient", hint: "Morocco, Turkey, Egypt, Jordan" },
-      { value: "far_east", label: "🗾 Far East", hint: "Japan, Korea, Vietnam" },
-      { value: "tropical", label: "🌴 Tropical & far", hint: "SE Asia, Caribbean, Mexico" },
-      { value: "americas", label: "🌎 The Americas", hint: "USA, Latin America" },
+      { value: "balkans", label: "🏖️ The Balkans", hint: "Macedonia, Croatia, Albania, Bulgaria…" },
+      { value: "med", label: "🍋 Mediterranean", hint: "Spain, Italy, Greece, Portugal, France" },
+      { value: "heart_eu", label: "🏰 Heart of Europe", hint: "Germany, Austria, UK, Czechia, Poland…" },
+      { value: "nordic", label: "❄️ Nordic & wild", hint: "Scandinavia, Iceland, Baltics" },
+      { value: "sun_ancient", label: "🐪 Sun & ancient", hint: "Turkey, Morocco, Egypt, Jordan, UAE" },
+      { value: "silk_road", label: "🗺️ Caucasus & Silk Road", hint: "Georgia, Armenia, Central Asia" },
+      { value: "far_east", label: "🏮 Far East", hint: "Japan, South Korea, Taiwan" },
+      { value: "trop_asia", label: "🌴 Tropical Asia", hint: "Thailand, Bali, Vietnam, Maldives" },
+      { value: "africa", label: "🦁 Africa & safari", hint: "South Africa, Tanzania, Kenya, Namibia" },
+      { value: "na", label: "🗽 USA & Canada", hint: "United States, Canada" },
+      { value: "latin", label: "🌮 Latin & Caribbean", hint: "Mexico, Caribbean, South America" },
+      { value: "oceania", label: "🐠 Oceania & Pacific", hint: "Australia, New Zealand, Fiji" },
       { value: "surprise", label: "🎲 Surprise me", hint: "I'm open — anywhere" },
     ],
   },
@@ -42,7 +42,9 @@ const QUESTIONS = [
       { value: "relax", label: "🧘 Relax & wellness" },
       { value: "adventure", label: "🧗 Adventure" },
       { value: "romance", label: "💞 Romance" },
-      { value: "festivals", label: "🎉 Festivals & events" },
+      { value: "diving", label: "🤿 Diving & snorkeling" },
+      { value: "ski", label: "⛷️ Ski & snow" },
+      { value: "wildlife", label: "🦁 Wildlife & safari" },
     ],
   },
   {
@@ -114,19 +116,10 @@ const QUESTIONS = [
     ],
   },
   {
-    id: "extras",
-    headline: "Anything on your mind?",
-    sub: "Optional — dream spots, places to skip, must-haves, dealbreakers.",
-    type: "text",
-    multiline: true,
-    optional: true,
-    placeholder: "e.g. been to Spain already, would love Japan, must have great vegan food",
-  },
-  {
     id: "from",
     headline: "Last one — where do you take off from?",
-    sub: "Your home city or airport.",
-    type: "text",
+    sub: "Start typing your home city and pick it from the list.",
+    type: "origin",
     placeholder: "e.g. Skopje",
   },
 ];
@@ -139,6 +132,91 @@ function splitEmoji(label) {
     emoji: hasEmoji ? parts[0] : "",
     text: hasEmoji ? parts.slice(1).join(" ") : label,
   };
+}
+
+// Origin city autocomplete → stores a structured {city, iata, lat, lon}.
+// Falls back to a plain typed string if TP autocomplete is unavailable.
+function OriginPicker({ value, onChange, placeholder }) {
+  const [text, setText] = useState(
+    value && typeof value === "object" ? `${value.city} (${value.iata})` : value || "",
+  );
+  const [list, setList] = useState([]);
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
+  const timer = useRef(null);
+
+  useEffect(() => {
+    function onDoc(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  function handleType(v) {
+    setText(v);
+    onChange(v); // store the raw string as a fallback while typing
+    clearTimeout(timer.current);
+    if (v.trim().length < 2) {
+      setList([]);
+      setOpen(false);
+      return;
+    }
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch("/api/places-autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ term: v }),
+        });
+        const j = await r.json();
+        setList(j.places || []);
+        setOpen((j.places || []).length > 0);
+      } catch {
+        setList([]);
+      }
+    }, 250);
+  }
+
+  function pick(p) {
+    onChange(p);
+    setText(`${p.city} (${p.iata})`);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={boxRef} className="relative">
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={text}
+        autoComplete="off"
+        onChange={(e) => handleType(e.target.value)}
+        onFocus={() => list.length && setOpen(true)}
+        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-lg text-slate-800 focus:border-teal-600 focus:outline-none"
+      />
+      {open && (
+        <ul className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+          {list.map((p) => (
+            <li key={p.iata}>
+              <button
+                onClick={() => pick(p)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-teal-50"
+              >
+                <span className="text-slate-800">
+                  {p.city}
+                  <span className="ml-2 text-sm text-slate-400">{p.country}</span>
+                </span>
+                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                  {p.iata}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export default function Quiz() {
@@ -168,7 +246,11 @@ export default function Quiz() {
         ? current?.start && current?.end
         : q.type === "multi"
           ? Array.isArray(current) && current.length > 0
-          : Boolean(current && String(current).trim());
+          : q.type === "origin"
+            ? typeof current === "object"
+              ? Boolean(current?.iata)
+              : Boolean(current && String(current).trim())
+            : Boolean(current && String(current).trim());
 
   function goNext() {
     if (isLast) {
@@ -317,26 +399,9 @@ export default function Quiz() {
             </div>
           )}
 
-          {/* Text — single line */}
-          {q.type === "text" && !q.multiline && (
-            <input
-              type="text"
-              placeholder={q.placeholder}
-              value={current || ""}
-              onChange={(e) => setAnswer(e.target.value)}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-lg text-slate-800 focus:border-teal-600 focus:outline-none"
-            />
-          )}
-
-          {/* Text — multi line (free notes) */}
-          {q.type === "text" && q.multiline && (
-            <textarea
-              rows={4}
-              placeholder={q.placeholder}
-              value={current || ""}
-              onChange={(e) => setAnswer(e.target.value)}
-              className="w-full resize-none rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-lg text-slate-800 focus:border-teal-600 focus:outline-none"
-            />
+          {/* Origin — city autocomplete */}
+          {q.type === "origin" && (
+            <OriginPicker value={current} onChange={setAnswer} placeholder={q.placeholder} />
           )}
 
           {/* Slider — taste scale (iconic ↔ hidden) */}
