@@ -50,13 +50,13 @@ const QUESTIONS = [
   {
     id: "discovery",
     headline: "Iconic or hidden gem?",
-    sub: "Slide to your taste.",
-    type: "slider",
-    min: 0,
-    max: 100,
-    default: 55,
-    minLabel: "🗺️ Famous & iconic",
-    maxLabel: "🧭 Off the beaten path",
+    sub: "Tap your taste.",
+    type: "single",
+    options: [
+      { value: "famous", label: "🌟 Famous & iconic", hint: "the places everyone loves" },
+      { value: "both", label: "⚖️ Best of both", hint: "popular, plus a few secrets" },
+      { value: "hidden", label: "💎 Hidden gems", hint: "off the radar, where locals go" },
+    ],
   },
   {
     id: "weather",
@@ -240,7 +240,7 @@ export default function Quiz() {
 
   // Is the current question answered? (controls the Next button)
   const answered =
-    q.optional || q.type === "slider"
+    q.optional
       ? true
       : q.type === "dates"
         ? current?.start && current?.end
@@ -404,24 +404,6 @@ export default function Quiz() {
             <OriginPicker value={current} onChange={setAnswer} placeholder={q.placeholder} />
           )}
 
-          {/* Slider — taste scale (iconic ↔ hidden) */}
-          {q.type === "slider" && (
-            <div className="mt-2">
-              <input
-                type="range"
-                min={q.min}
-                max={q.max}
-                step="1"
-                value={current ?? q.default}
-                onChange={(e) => setAnswer(Number(e.target.value))}
-                className="w-full accent-teal-600"
-              />
-              <div className="mt-3 flex justify-between text-sm font-medium text-slate-500">
-                <span>{q.minLabel}</span>
-                <span>{q.maxLabel}</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Next / Finish */}
